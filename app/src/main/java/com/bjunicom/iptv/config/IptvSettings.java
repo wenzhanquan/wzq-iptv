@@ -12,7 +12,7 @@ public class IptvSettings {
 
     // IPTV 运营商节目源类型
     public static final int ISP_BEIJING_UNICOM = 0;         // 北京联通 IPTV (rtp://239.3.1.x:port)
-    public static final int ISP_BEIJING_MOBILE = 1;         // 北京移动 IPTV (http://otttv.bj.chinamobile.com/.../index.m3u8)
+    public static final int ISP_BEIJING_MOBILE = 1;         // 北京移动 IPTV (rtp://228.1.1.x:port)
     public static final int ISP_BEIJING_TELECOM = 2;        // 北京电信 IPTV (rtp://225.1.8.x:port)
     public static final int ISP_ALL_MERGED = 3;             // 北京三网聚合 (联通 + 移动 + 电信)
     public static final int ISP_CUSTOM_M3U = 4;             // 用户上传的自定义 M3U 播放列表
@@ -30,6 +30,7 @@ public class IptvSettings {
     private static final String KEY_CUSTOM_M3U_NAME = "custom_m3u_name";
     private static final String KEY_STREAM_MODE = "stream_mode";
     private static final String KEY_UDPXY_ADDR = "udpxy_addr";
+    private static final String KEY_MULTICAST_INTERFACE = "multicast_interface";
     private static final String KEY_PLAYER_TYPE = "player_type";
     private static final String KEY_MEDIACODEC_ENABLED = "mediacodec_enabled";
     private static final String KEY_MEDIACODEC_HEVC = "mediacodec_hevc";
@@ -52,7 +53,7 @@ public class IptvSettings {
     }
 
     public int getIspProvider() {
-        return prefs.getInt(KEY_ISP_PROVIDER, ISP_BEIJING_UNICOM);
+        return prefs.getInt(KEY_ISP_PROVIDER, ISP_BEIJING_MOBILE);
     }
 
     public void setIspProvider(int ispProvider) {
@@ -115,6 +116,9 @@ public class IptvSettings {
     }
 
     public static String getDefaultScanSubnetForIsp(int ispProvider) {
+        if (ispProvider == ISP_BEIJING_MOBILE) {
+            return "228.1.1";
+        }
         if (ispProvider == ISP_BEIJING_TELECOM) {
             return "225.1.8";
         }
@@ -122,7 +126,7 @@ public class IptvSettings {
     }
 
     public int getStreamMode() {
-        return prefs.getInt(KEY_STREAM_MODE, STREAM_MODE_UDPXY);
+        return prefs.getInt(KEY_STREAM_MODE, STREAM_MODE_LOCAL_PROXY);
     }
 
     public void setStreamMode(int mode) {
@@ -139,6 +143,15 @@ public class IptvSettings {
 
     public void setUdpxyAddress(String addr) {
         prefs.edit().putString(KEY_UDPXY_ADDR, addr != null ? addr.trim() : "").apply();
+    }
+
+    public String getMulticastInterfaceName() {
+        String name = prefs.getString(KEY_MULTICAST_INTERFACE, "");
+        return TextUtils.isEmpty(name) ? "" : name.trim();
+    }
+
+    public void setMulticastInterfaceName(String name) {
+        prefs.edit().putString(KEY_MULTICAST_INTERFACE, name != null ? name.trim() : "").apply();
     }
 
     public int getPlayerType() {
@@ -215,9 +228,14 @@ public class IptvSettings {
             return prefs.getString(KEY_LAST_CHANNEL_URL, "rtp://239.3.1.129:8008");
         }
         String key = KEY_LAST_CHANNEL_URL + "_" + isp;
-        String defaultUrl = (isp == ISP_BEIJING_TELECOM)
-                ? "rtp://225.1.8.1:8008"
-                : "";
+        String defaultUrl;
+        if (isp == ISP_BEIJING_MOBILE) {
+            defaultUrl = "rtp://228.1.1.28:8008";
+        } else if (isp == ISP_BEIJING_TELECOM) {
+            defaultUrl = "rtp://225.1.8.1:8008";
+        } else {
+            defaultUrl = "";
+        }
         return prefs.getString(key, defaultUrl);
     }
 

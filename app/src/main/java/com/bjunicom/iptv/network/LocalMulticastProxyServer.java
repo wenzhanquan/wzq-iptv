@@ -15,6 +15,7 @@ import java.net.NetworkInterface;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
@@ -37,6 +38,8 @@ import java.util.regex.Pattern;
 public class LocalMulticastProxyServer {
     private static final String TAG = "LocalMulticastProxy";
     private static final Pattern PATH_PATTERN = Pattern.compile("/(rtp|udp)/([0-9.]+):(\\d+)");
+    private static final int PROXY_PORT = 8899;  // 固定本地组播代理端口 (127.0.0.1)
+    private static volatile String userPreferredInterfaceName = null;
 
     private final AtomicBoolean running = new AtomicBoolean(false);
     private final List<ActiveSession> activeSessions = new CopyOnWriteArrayList<>();
@@ -74,8 +77,14 @@ public class LocalMulticastProxyServer {
         try {
             serverSocket = new ServerSocket();
             serverSocket.setReuseAddress(true);
-            serverSocket.bind(new InetSocketAddress("127.0.0.1", 0));
-            listenPort = serverSocket.getLocalPort();
+            try {
+                serverSocket.bind(new InetSocketAddress("127.0.0.1", PROXY_PORT));
+                listenPort = PROXY_PORT;
+            } catch (IOException bindEx) {
+                serverSocket.bind(new InetSocketAddress("127.0.0.1", 0));
+                listenPort = serverSocket.getLocalPort();
+                Log.w(TAG, "Fixed proxy port " + PROXY_PORT + " occupied, fallback to random port " + listenPort);
+            }
             running.set(true);
             executorService = Executors.newCachedThreadPool();
             executorService.execute(this::acceptLoop);
@@ -287,8 +296,40 @@ public class LocalMulticastProxyServer {
     /**
      * 优先查找 eth0 / usb0 / wlan0 等已启用且具备 IPv4 地址的组播网卡（支持有线网卡直连光猫 IPTV 口）
      */
+    public static void setPreferredInterfaceName(String name) {
+        userPreferredInterfaceName = (name == null || name.trim().isEmpty()) ? null : name.trim();
+    }
+
+    public static String getPreferredInterfaceName() {
+        return userPreferredInterfaceName;
+    }
+
+    public static List<NetworkInterface> listAvailableInterfaces() {
+        List<NetworkInterface> result = new ArrayList<>();
+        try {
+            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+            if (interfaces != null) {
+                for (NetworkInterface nif : Collections.list(interfaces)) {
+                    if (!nif.isLoopback() && hasIpv4Address(nif)) {
+                        result.add(nif);
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return result;
+    }
+
     public static NetworkInterface findPreferredMulticastInterface() {
         try {
+            // 1. 用户指定网卡优先
+            if (userPreferredInterfaceName != null && !userPreferredInterfaceName.isEmpty()) {
+                NetworkInterface nif = NetworkInterface.getByName(userPreferredInterfaceName);
+                if (nif != null && nif.isUp() && !nif.isLoopback() && hasIpv4Address(nif)) {
+                    return nif;
+                }
+            }
+            // 2. 默认硬编码顺序（有线优先）
             String[] preferredNames = {"eth0", "eth1", "usb0", "rndis0", "wlan0"};
             for (String name : preferredNames) {
                 NetworkInterface nif = NetworkInterface.getByName(name);
@@ -296,6 +337,7 @@ public class LocalMulticastProxyServer {
                     return nif;
                 }
             }
+            // 3. 兜底：遍历所有网卡
             Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
             if (interfaces != null) {
                 for (NetworkInterface nif : Collections.list(interfaces)) {

@@ -3,6 +3,7 @@ package com.bjunicom.iptv.repository;
 import android.content.Context;
 import android.os.StrictMode;
 import android.text.TextUtils;
+import android.util.Log;
 
 import com.bjunicom.iptv.config.IptvSettings;
 import com.bjunicom.iptv.model.IptvChannel;
@@ -35,6 +36,8 @@ import java.util.Set;
  * 3. 分组索引 ([高清]央视, [高清]卫视, [高清]北京, [高清]北京IPTV, [高清]NewTV, [高清]地方, [高清]购物, 4K, 少儿, 标清, 动态扫描发现, 收藏)
  */
 public class ChannelRepository {
+    private static final String TAG = "ChannelRepository";
+
     public static final String ASSET_UNICOM_LATEST = "bj-unicom-iptv.m3u";
     public static final String ASSET_UNICOM_ALL = "bj-unicom-iptv-all.m3u";
     public static final String ASSET_MOBILE_LATEST = "bj-mobile-iptv.m3u";
@@ -99,20 +102,16 @@ public class ChannelRepository {
         boolean includeAll = settings.isIncludeAllRepoChannels();
         List<IptvChannel> baseList = new ArrayList<>();
 
-        // 【修改核心】：拦截北京移动，改为从 NAS 远程拉取 m3u
         if (ispProvider == IptvSettings.ISP_BEIJING_MOBILE) {
-            String nasUrl = "http://192.168.x.x/bj_mobile.m3u"; // TODO: 替换为你实际的 NAS 访问地址
-            baseList.addAll(loadFromHttpWithIsp(nasUrl, GROUP_ISP_MOBILE, false));
+            String assetName = includeAll ? ASSET_MOBILE_ALL : ASSET_MOBILE_LATEST;
+            baseList.addAll(loadFromAssetsWithIsp(assetName, GROUP_ISP_MOBILE, false));
         } else if (ispProvider == IptvSettings.ISP_BEIJING_TELECOM) {
             baseList.addAll(loadFromAssetsWithIsp(ASSET_TELECOM_ALL, GROUP_ISP_TELECOM, false));
         } else if (ispProvider == IptvSettings.ISP_ALL_MERGED) {
             String unicomAsset = includeAll ? ASSET_UNICOM_ALL : ASSET_UNICOM_LATEST;
+            String mobileAsset = includeAll ? ASSET_MOBILE_ALL : ASSET_MOBILE_LATEST;
             baseList.addAll(loadFromAssetsWithIsp(unicomAsset, GROUP_ISP_UNICOM, true));
-            
-            // 三网融合模式下，移动源也从 NAS 拉取
-            String nasUrl = "http://192.168.x.x/bj_mobile.m3u"; // TODO: 替换为你实际的 NAS 访问地址
-            baseList.addAll(loadFromHttpWithIsp(nasUrl, GROUP_ISP_MOBILE, true));
-            
+            baseList.addAll(loadFromAssetsWithIsp(mobileAsset, GROUP_ISP_MOBILE, true));
             baseList.addAll(loadFromAssetsWithIsp(ASSET_TELECOM_ALL, GROUP_ISP_TELECOM, true));
             if (hasCustomUploadedM3u()) {
                 baseList.addAll(loadCustomUploadedWithIsp(true));
@@ -410,18 +409,33 @@ public class ChannelRepository {
         }
 
         if (persistToDisk) {
-            saveModifiedM3u(allChannels);
+            boolean ok = saveModifiedM3u(allChannels);
+            if (!ok) {
+                Log.e(TAG, "mergeScanResults: 扫描结果持久化失败");
+            }
         }
     }
 
-    public synchronized void saveModifiedM3u(List<IptvChannel> channels) {
+    public synchronized boolean saveModifiedM3u(List<IptvChannel> channels) {
+        File outFile = new File(getScanRootDir(), getCustomScannedFileName());
         try {
-            File outFile = new File(getScanRootDir(), getCustomScannedFileName());
             String m3uContent = M3uParser.toM3uContent(channels, true, null);
+            byte[] data = m3uContent.getBytes(StandardCharsets.UTF_8);
             try (FileOutputStream fos = new FileOutputStream(outFile)) {
-                fos.write(m3uContent.getBytes(StandardCharsets.UTF_8));
+                fos.write(data);
+                fos.flush();
             }
-        } catch (IOException ignored) {
+            // 校验：文件存在且内容长度与写入一致
+            if (!outFile.exists() || outFile.length() != data.length) {
+                Log.e(TAG, "saveModifiedM3u 校验失败: " + outFile.getAbsolutePath()
+                        + " (exists=" + outFile.exists() + ", len=" + outFile.length()
+                        + ", expect=" + data.length + ")");
+                return false;
+            }
+            return true;
+        } catch (IOException e) {
+            Log.e(TAG, "saveModifiedM3u 写入失败: " + outFile.getAbsolutePath() + " - " + e.getMessage(), e);
+            return false;
         }
     }
 
@@ -430,8 +444,8 @@ public class ChannelRepository {
         if (dir == null) {
             dir = new File(appContext.getFilesDir(), "iptv_scan");
         }
-        if (!dir.exists()) {
-            dir.mkdirs();
+        if (!dir.exists() && !dir.mkdirs()) {
+            Log.e(TAG, "getScanRootDir 目录创建失败: " + dir.getAbsolutePath());
         }
         return dir;
     }

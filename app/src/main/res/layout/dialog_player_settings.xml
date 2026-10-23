@@ -10,6 +10,39 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
+        <!-- Section 组播网卡：接收网卡选择（有线/无线） -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:background="@drawable/bg_md3_card_container"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-medium"
+                android:text="组播接收网卡 (有线 / 无线)"
+                android:textColor="@color/md_theme_dark_primary"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/btn_settings_interface"
+                style="@style/Widget.BjUnicomIptv.HudButton"
+                android:layout_width="match_parent"
+                android:layout_height="38dp"
+                android:layout_marginTop="8dp"
+                android:drawableStart="@drawable/ic_flat_radar"
+                android:drawablePadding="6dp"
+                android:focusable="true"
+                android:paddingHorizontal="14dp"
+                android:text="组播网卡: 自动"
+                android:textColor="@color/md_theme_dark_primary"
+                android:textSize="13sp" />
+        </LinearLayout>
+
         <!-- Section 0: IPTV 运营商节目源切换卡片 (北京联通 / 北京移动 / 北京电信 / 三网聚合) -->
         <LinearLayout
             android:layout_width="match_parent"
@@ -55,7 +88,7 @@
                     android:buttonTint="@color/md_theme_dark_primary"
                     android:focusable="true"
                     android:paddingHorizontal="8dp"
-                    android:text="北京移动 IPTV (bj-mobile-iptv 单播源 http://.../*.m3u8)"
+                    android:text="北京移动 IPTV (bj-mobile-iptv 组播源 rtp://228.1.1.x)"
                     android:textColor="@color/text_primary"
                     android:textSize="13sp" />
 
@@ -94,7 +127,7 @@
                     android:buttonTint="@color/md_theme_dark_primary"
                     android:focusable="true"
                     android:paddingHorizontal="8dp"
-                    android:text="自定义 M3U 播放列表 (支持上传本地文件与内容检测)"
+                    android:text="自定义 M3U 播放列表 (支持订阅 HTTP 地址)"
                     android:textColor="@color/text_primary"
                     android:textSize="13sp" />
             </RadioGroup>
@@ -109,7 +142,7 @@
                 android:drawablePadding="6dp"
                 android:focusable="true"
                 android:paddingHorizontal="14dp"
-                android:text="上传并检测自定义 M3U 播放列表文件..."
+                android:text="订阅并检测自定义 M3U 播放列表..."
                 android:textColor="@color/md_theme_dark_primary"
                 android:textSize="13sp" />
         </LinearLayout>
@@ -196,6 +229,7 @@
                 android:singleLine="true"
                 android:textColor="@color/text_primary"
                 android:textSize="14sp" />
+
         </LinearLayout>
 
         <!-- Section 2: 解码器池与渲染引擎设置卡片 -->

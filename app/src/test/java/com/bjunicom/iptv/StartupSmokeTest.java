@@ -240,8 +240,7 @@ public class StartupSmokeTest {
             activity.switchIspProvider(com.bjunicom.iptv.config.IptvSettings.ISP_BEIJING_MOBILE);
             assertEquals(com.bjunicom.iptv.config.IptvSettings.ISP_BEIJING_MOBILE, settings.getIspProvider());
             assertTrue(repo.getAllChannels().size() >= 25);
-            assertTrue(repo.getAllChannels().get(0).isHlsStream());
-            assertTrue(repo.getCategoryGroups().contains(com.bjunicom.iptv.repository.ChannelRepository.GROUP_HD_NEWTV));
+            assertTrue(repo.getAllChannels().get(0).isMulticastStream());
 
             // 3. Switch to Beijing Telecom IPTV
             activity.switchIspProvider(com.bjunicom.iptv.config.IptvSettings.ISP_BEIJING_TELECOM);

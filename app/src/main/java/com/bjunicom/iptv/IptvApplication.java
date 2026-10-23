@@ -5,6 +5,7 @@ import android.content.Context;
 import android.net.wifi.WifiManager;
 import android.util.Log;
 
+import com.bjunicom.iptv.config.IptvSettings;
 import com.bjunicom.iptv.network.LocalMulticastProxyServer;
 
 import java.io.File;
@@ -40,6 +41,13 @@ public class IptvApplication extends Application {
         acquireMulticastLock();
         localProxyServer = new LocalMulticastProxyServer();
         localProxyServer.start();
+        // 恢复用户指定的组播网卡（空表示按默认规则自动选取）
+        try {
+            String ifName = new IptvSettings(this).getMulticastInterfaceName();
+            LocalMulticastProxyServer.setPreferredInterfaceName(ifName);
+        } catch (Throwable t) {
+            Log.w(TAG, "restore multicast interface failed: " + t.getMessage());
+        }
     }
 
     private void installCrashRecorder() {

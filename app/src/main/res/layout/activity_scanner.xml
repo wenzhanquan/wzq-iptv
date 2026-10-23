@@ -55,7 +55,7 @@
             android:nextFocusLeft="@id/btn_scanner_back"
             android:nextFocusRight="@id/btn_export_m3u"
             android:paddingHorizontal="14dp"
-            android:text="上传/检测 M3U"
+            android:text="订阅/检测 M3U"
             android:textColor="@color/accent_amber"
             android:textSize="13sp" />
 
@@ -120,7 +120,7 @@
                         android:checked="true"
                         android:focusable="true"
                         android:paddingHorizontal="8dp"
-                        android:text="动态扫描网段全部组播地址 (239.3.1.x)"
+                        android:text="动态扫描网段全部组播地址 (228.1.1.x)"
                         android:textColor="@color/text_primary"
                         android:textSize="13sp" />
 
@@ -186,7 +186,7 @@
                         android:fontFamily="monospace"
                         android:paddingHorizontal="12dp"
                         android:singleLine="true"
-                        android:text="239.3.1"
+                        android:text="228.1.1"
                         android:textColor="@color/text_primary"
                         android:textSize="13sp" />
                 </LinearLayout>

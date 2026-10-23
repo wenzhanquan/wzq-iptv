@@ -31,6 +31,7 @@ import com.bjunicom.iptv.IptvApplication;
 import com.bjunicom.iptv.R;
 import com.bjunicom.iptv.config.IptvSettings;
 import com.bjunicom.iptv.model.IptvChannel;
+import com.bjunicom.iptv.network.LocalMulticastProxyServer;
 import com.bjunicom.iptv.network.StreamUrlResolver;
 import com.bjunicom.iptv.parser.M3uParser;
 import com.bjunicom.iptv.player.IjkVideoView;
@@ -41,6 +42,7 @@ import com.bjunicom.iptv.ui.adapter.ChannelAdapter;
 import com.bjunicom.iptv.update.AppUpdateManager;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
+import java.net.NetworkInterface;
 import java.util.List;
 import java.util.Locale;
 
@@ -153,7 +155,8 @@ public class MainActivity extends AppCompatActivity {
         }
 
         handleIncomingM3uIntent(getIntent());
-        AppUpdateManager.getInstance(this).checkForUpdatesOnStartup(this);
+        // 已关闭自动更新检查（fork 项目不应再检查原作者 anITer/utv 的 releases 更新）
+        // AppUpdateManager.getInstance(this).checkForUpdatesOnStartup(this);
     }
 
     @Override
@@ -264,6 +267,8 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.btn_open_scanner).setOnClickListener(v -> openScannerActivity());
 
         findViewById(R.id.btn_open_settings).setOnClickListener(v -> showSettingsDialog());
+
+        findViewById(R.id.btn_show_log).setOnClickListener(v -> showLogDialog());
 
         btnPrevChannel.setOnClickListener(v -> switchAdjacentChannel(-1));
         findViewById(R.id.btn_next_channel).setOnClickListener(v -> switchAdjacentChannel(1));
@@ -761,13 +766,11 @@ public class MainActivity extends AppCompatActivity {
         tvOsdGroupName.setText(TextUtils.join(" / ", ch.getGroups()));
 
         if (!ch.isMulticastStream()) {
-            tvOsdStreamUrl.setText("HTTP/HLS 单播源: " + ch.getRawUrl());
-        } else if (settings.getStreamMode() == IptvSettings.STREAM_MODE_DIRECT_RTP) {
-            tvOsdStreamUrl.setText("RTP 组播直连 (网卡 IGMP): " + ch.getRawUrl());
+            tvOsdStreamUrl.setText("单播源: " + ch.getRawUrl());
         } else if (resolvedUrl.equals(ch.getRawUrl())) {
             tvOsdStreamUrl.setText("组播直连: " + ch.getRawUrl());
         } else {
-            tvOsdStreamUrl.setText("组播源: " + ch.getRawUrl() + "  ➔  " + resolvedUrl);
+            tvOsdStreamUrl.setText("组播源: " + resolvedUrl);
         }
 
         String vTrack = !TextUtils.isEmpty(ch.getVideoTrackInfo())
@@ -1002,13 +1005,101 @@ public class MainActivity extends AppCompatActivity {
                 Toast.LENGTH_SHORT).show();
     }
 
+    private void showInterfacePickerDialog(Button targetButton) {
+        List<NetworkInterface> interfaces = LocalMulticastProxyServer.listAvailableInterfaces();
+        if (interfaces == null || interfaces.isEmpty()) {
+            Toast.makeText(this, "未找到可用的网络接口", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String current = settings.getMulticastInterfaceName();
+        String[] options = new String[interfaces.size() + 1];
+        options[0] = "自动 (默认有线优先)";
+        int checked = 0;
+        for (int i = 0; i < interfaces.size(); i++) {
+            NetworkInterface nif = interfaces.get(i);
+            String ip = "";
+            try {
+                java.util.Enumeration<java.net.InetAddress> addrs = nif.getInetAddresses();
+                while (addrs.hasMoreElements()) {
+                    java.net.InetAddress a = addrs.nextElement();
+                    if (a instanceof java.net.Inet4Address) {
+                        ip = a.getHostAddress();
+                        break;
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+            options[i + 1] = nif.getName() + (TextUtils.isEmpty(ip) ? "" : " (" + ip + ")");
+            if (!TextUtils.isEmpty(current) && current.equals(nif.getName())) {
+                checked = i + 1;
+            }
+        }
+        final int[] selected = {checked};
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("选择组播网卡")
+                .setSingleChoiceItems(options, checked, (dialog, which) -> selected[0] = which)
+                .setPositiveButton("确定", (dialog, which) -> {
+                    if (selected[0] == 0) {
+                        settings.setMulticastInterfaceName("");
+                        LocalMulticastProxyServer.setPreferredInterfaceName(null);
+                        targetButton.setText("组播网卡: 自动 (默认有线优先)");
+                    } else {
+                        NetworkInterface nif = interfaces.get(selected[0] - 1);
+                        settings.setMulticastInterfaceName(nif.getName());
+                        LocalMulticastProxyServer.setPreferredInterfaceName(nif.getName());
+                        targetButton.setText("组播网卡: " + nif.getName());
+                    }
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void showLogDialog() {
+        StringBuilder sb = new StringBuilder();
+        IptvChannel ch = currentChannel;
+        if (ch == null) {
+            sb.append("当前未播放任何频道");
+        } else {
+            int localProxyPort = (getApplication() instanceof IptvApplication)
+                    ? ((IptvApplication) getApplication()).getLocalProxyPort()
+                    : -1;
+            String resolvedUrl = StreamUrlResolver.resolvePlaybackUrl(ch, settings, localProxyPort);
+            int mode = settings.getStreamMode();
+            String modeName;
+            switch (mode) {
+                case IptvSettings.STREAM_MODE_UDPXY:
+                    modeName = "路由器 udpxy (" + settings.getUdpxyAddress() + ")";
+                    break;
+                case IptvSettings.STREAM_MODE_LOCAL_PROXY:
+                    modeName = "本地组播代理 (127.0.0.1:" + localProxyPort + ")";
+                    break;
+                case IptvSettings.STREAM_MODE_DIRECT_RTP:
+                    modeName = "RTP 组播直连";
+                    break;
+                default:
+                    modeName = "未知";
+            }
+            sb.append("频道: ").append(ch.getDisplayName()).append("\n\n");
+            sb.append("原始地址: ").append(ch.getRawUrl()).append("\n\n");
+            sb.append("拼接地址: ").append(resolvedUrl).append("\n\n");
+            sb.append("流模式: ").append(modeName).append("\n");
+            sb.append("是否组播: ").append(ch.isMulticastStream() ? "是" : "否").append("\n");
+            sb.append("连接状态: ").append(Boolean.TRUE.equals(ch.getConnected()) ? "可用" : "未连接/不可用");
+        }
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("播放日志")
+                .setMessage(sb.toString())
+                .setPositiveButton("关闭", null)
+                .show();
+    }
+
     private void showIspSwitchDialog() {
         String customLabel = repository.hasCustomUploadedM3u()
                 ? "自定义 M3U 播放列表 (" + settings.getCustomM3uName() + ")"
-                : "自定义 M3U 播放列表 (点击上传并检测文件内容)";
+                : "自定义 M3U 播放列表 (点击订阅并检测频道内容)";
         String[] ispOptions = {
                 "北京联通 IPTV (bj-unicom-iptv 组播源 rtp://239.3.1.x)",
-                "北京移动 IPTV (bj-mobile-iptv 单播源 http://.../*.m3u8)",
+                "北京移动 IPTV (bj-mobile-iptv 组播源 rtp://228.1.1.x)",
                 "北京电信 IPTV (bj-telecom-iptv 组播源 rtp://225.1.8.x)",
                 "北京三网聚合 (联通 + 移动 + 电信全部频道)",
                 customLabel
@@ -1024,7 +1115,7 @@ public class MainActivity extends AppCompatActivity {
                         switchIspProvider(which);
                     }
                 })
-                .setNeutralButton("上传/检测自定义 M3U", (d, w) -> showCustomM3uDialog())
+                .setNeutralButton("订阅/检测自定义 M3U", (d, w) -> showCustomM3uDialog())
                 .setNegativeButton("取消", null)
                 .show();
     }
@@ -1151,7 +1242,7 @@ public class MainActivity extends AppCompatActivity {
 
         String[] items = {
                 "切换运营商节目源: 当前 [" + settings.getIspShortName() + "] (联通 / 移动 / 电信 / 自定义)",
-                "上传并检测自定义 M3U 播放列表文件",
+                "订阅并检测自定义 M3U 播放列表",
                 "虚拟数字键盘选台 (按台号直达)",
                 "打开频道分类列表 (左右键切换分类)",
                 favText,
@@ -1216,6 +1307,7 @@ public class MainActivity extends AppCompatActivity {
         CheckBox cbOpenSlEs = view.findViewById(R.id.cb_settings_opensles);
         CheckBox cbTextureView = view.findViewById(R.id.cb_settings_textureview);
         CheckBox cbAllChannels = view.findViewById(R.id.cb_settings_all_channels);
+        Button btnSettingsInterface = view.findViewById(R.id.btn_settings_interface);
 
         if (rgIspProvider != null) {
             int currentIsp = settings.getIspProvider();
@@ -1242,6 +1334,16 @@ public class MainActivity extends AppCompatActivity {
         }
 
         etUdpxy.setText(settings.getUdpxyAddress());
+
+        if (btnSettingsInterface != null) {
+            String curIf = settings.getMulticastInterfaceName();
+            if (TextUtils.isEmpty(curIf)) {
+                btnSettingsInterface.setText("组播网卡: 自动 (默认有线优先)");
+            } else {
+                btnSettingsInterface.setText("组播网卡: " + curIf);
+            }
+            btnSettingsInterface.setOnClickListener(v -> showInterfacePickerDialog(btnSettingsInterface));
+        }
 
         int playerCore = settings.getPlayerType();
         if (playerCore == IptvSettings.PLAYER_ANDROID_MEDIA) {

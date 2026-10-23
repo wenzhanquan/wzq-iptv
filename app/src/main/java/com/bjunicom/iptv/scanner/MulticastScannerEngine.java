@@ -2,6 +2,7 @@ package com.bjunicom.iptv.scanner;
 
 import android.content.Context;
 import android.text.TextUtils;
+import android.util.Log;
 
 import com.bjunicom.iptv.config.IptvSettings;
 import com.bjunicom.iptv.model.IptvChannel;
@@ -47,6 +48,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * 3. MODE_SHELL_SCRIPT: 释放 assets/check_iptv_m3u.sh 并通过系统 Shell (ProcessBuilder) 直接执行脚本动态扫描与校验
  */
 public class MulticastScannerEngine {
+    private static final String TAG = "MulticastScannerEngine";
 
     public static final int MODE_CHECK_PLAYLIST = 0;
     public static final int MODE_DYNAMIC_SUBNET_SCAN = 1;
@@ -312,7 +314,8 @@ public class MulticastScannerEngine {
                             channel = known;
                         } else {
                             String rawUrl = "rtp://" + ip + ":" + port;
-                            String ispPrefix = cleanSubnet.startsWith("225.") ? "电信组播" : "联通组播";
+                            String ispPrefix = cleanSubnet.startsWith("225.") ? "电信组播"
+                                    : cleanSubnet.startsWith("228.") ? "移动组播" : "联通组播";
                             String extInf = String.format(Locale.US,
                                     "#EXTINF:-1 tvg-id=\"\" tvg-name=\"\" tvg-logo=\"\" group-title=\"动态扫描发现\",%s_%s_%d[%d][%s]",
                                     ispPrefix, ip, port, 500 + idx, probe.resolutionFlag);
@@ -764,10 +767,8 @@ public class MulticastScannerEngine {
         String finalLog = scriptLogContent + "\n" + stats.toSummaryText() + "\n";
         writeTextFile(stats.scriptLogFile, finalLog);
 
-        // 同步到 ChannelRepository
-        if (stats.connectTrueCount > 0) {
-            repository.mergeScanResults(channels, true);
-        }
+        // 同步到 ChannelRepository（无论是否有可用频道都持久化探测状态，便于下次加载）
+        repository.mergeScanResults(channels, true);
 
         if (callback != null) {
             callback.onLogLine("----------------------------------------");
@@ -782,7 +783,9 @@ public class MulticastScannerEngine {
         String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
         File dir = new File(repository.getScanRootDir(), "iptv_" + timestamp);
         File screenshotsDir = new File(dir, "screenshots");
-        screenshotsDir.mkdirs();
+        if (!screenshotsDir.mkdirs() && !screenshotsDir.exists()) {
+            Log.e(TAG, "createRunDirectory 目录创建失败: " + dir.getAbsolutePath());
+        }
         return dir;
     }
 

@@ -29,7 +29,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:fontFamily="sans-serif-medium"
-                    android:text="1. 上传或选择自定义 M3U 播放列表文件"
+                    android:text="1. 订阅或粘贴自定义 M3U 播放列表"
                     android:textColor="@color/md_theme_dark_primary"
                     android:textSize="14sp"
                     android:textStyle="bold" />
@@ -55,33 +55,6 @@
                 android:orientation="horizontal">
 
                 <Button
-                    android:id="@+id/btn_pick_m3u_file"
-                    style="@style/Widget.BjUnicomIptv.PrimaryButton"
-                    android:layout_width="0dp"
-                    android:layout_height="38dp"
-                    android:layout_marginEnd="8dp"
-                    android:layout_weight="1.2"
-                    android:drawableStart="@drawable/ic_flat_upload"
-                    android:drawablePadding="6dp"
-                    android:focusable="true"
-                    android:paddingHorizontal="12dp"
-                    android:text="选择本地 M3U 文件"
-                    android:textSize="12sp"
-                    android:textStyle="bold" />
-
-                <Button
-                    android:id="@+id/btn_scan_local_m3u_files"
-                    style="@style/Widget.BjUnicomIptv.HudButton"
-                    android:layout_width="0dp"
-                    android:layout_height="38dp"
-                    android:layout_marginEnd="8dp"
-                    android:layout_weight="1"
-                    android:focusable="true"
-                    android:paddingHorizontal="10dp"
-                    android:text="扫描设备 M3U"
-                    android:textSize="12sp" />
-
-                <Button
                     android:id="@+id/btn_load_sample_m3u"
                     style="@style/Widget.BjUnicomIptv.HudButton"
                     android:layout_width="wrap_content"
@@ -89,6 +62,39 @@
                     android:focusable="true"
                     android:paddingHorizontal="12dp"
                     android:text="已存/示例"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <EditText
+                    android:id="@+id/et_subscribe_url"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_marginEnd="8dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_badge"
+                    android:fontFamily="monospace"
+                    android:hint="订阅地址 (http://...) 如 NAS 上的 m3u"
+                    android:inputType="textUri"
+                    android:paddingHorizontal="10dp"
+                    android:textColor="@color/text_primary"
+                    android:textColorHint="@color/text_muted"
+                    android:textSize="11sp" />
+
+                <Button
+                    android:id="@+id/btn_subscribe_url"
+                    style="@style/Widget.BjUnicomIptv.HudButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:focusable="true"
+                    android:paddingHorizontal="12dp"
+                    android:text="订阅"
                     android:textSize="12sp" />
             </LinearLayout>
 
@@ -101,7 +107,7 @@
                 android:focusable="true"
                 android:fontFamily="monospace"
                 android:gravity="top|start"
-                android:hint="选择本地 .m3u/.m3u8 文件上传，或在此处直接粘贴 M3U 文本内容 / 输入本地文件路径 (如 /sdcard/Download/iptv.m3u)..."
+                android:hint="在此处直接粘贴 M3U 文本内容，或在上方输入订阅地址 (http://...) 后点击「订阅」..."
                 android:inputType="textMultiLine|textNoSuggestions"
                 android:minLines="4"
                 android:padding="10dp"
@@ -182,7 +188,7 @@
                 android:fontFamily="monospace"
                 android:lineSpacingExtra="3dp"
                 android:padding="12dp"
-                android:text="请点击上方「选择本地 M3U 文件」上传，或粘贴内容后点击「解析并校验内容」查看详细检测报告。"
+                android:text="请粘贴 M3U 内容或输入订阅地址后，点击「解析并校验内容」查看详细检测报告。"
                 android:textColor="@color/accent_green"
                 android:textSize="11sp" />
         </LinearLayout>

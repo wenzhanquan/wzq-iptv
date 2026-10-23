@@ -85,10 +85,65 @@
             android:layout_marginTop="14dp"
             android:background="@drawable/bg_md3_hud_surface"
             android:elevation="8dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingHorizontal="16dp"
-            android:paddingVertical="10dp">
+            android:orientation="vertical"
+            android:paddingVertical="8dp">
+
+            <!-- 第一行：频道标题 + 实时速率 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="16dp">
+
+                <View
+                    android:layout_width="8dp"
+                    android:layout_height="8dp"
+                    android:layout_marginStart="14dp"
+                    android:background="@drawable/ic_md_live_dot" />
+
+                <TextView
+                    android:id="@+id/tv_top_channel_title"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:fontFamily="sans-serif-medium"
+                    android:singleLine="true"
+                    android:text="001 CCTV-1综合 [高清]"
+                    android:textColor="@color/text_primary"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tv_top_stream_speed"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="12dp"
+                    android:background="@drawable/bg_channel_num_pill"
+                    android:fontFamily="monospace"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="5dp"
+                    android:text="0 KB/s | 25 fps"
+                    android:textColor="@color/md_theme_dark_primary"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- 第二行：按钮排（横向滚动，适配手机窄屏） -->
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="16dp"
+                    android:paddingTop="8dp">
 
             <Button
                 android:id="@+id/btn_toggle_drawer"
@@ -103,8 +158,8 @@
                 android:nextFocusLeft="@id/btn_reload_stream"
                 android:nextFocusRight="@id/btn_switch_isp"
                 android:nextFocusUp="@id/btn_prev_channel"
-                android:paddingHorizontal="14dp"
-                android:text="频道列表"
+                android:paddingHorizontal="12dp"
+                android:text="列表"
                 android:textSize="13sp" />
 
             <Button
@@ -112,6 +167,7 @@
                 style="@style/Widget.BjUnicomIptv.HudButton"
                 android:layout_width="wrap_content"
                 android:layout_height="38dp"
+                android:layout_marginEnd="8dp"
                 android:drawablePadding="6dp"
                 android:focusable="true"
                 android:nextFocusDown="@id/btn_prev_channel"
@@ -122,41 +178,6 @@
                 android:text="北京联通"
                 android:textColor="@color/accent_amber"
                 android:textSize="13sp" />
-
-            <View
-                android:layout_width="8dp"
-                android:layout_height="8dp"
-                android:layout_marginStart="14dp"
-                android:background="@drawable/ic_md_live_dot" />
-
-            <TextView
-                android:id="@+id/tv_top_channel_title"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:layout_weight="1"
-                android:ellipsize="end"
-                android:fontFamily="sans-serif-medium"
-                android:singleLine="true"
-                android:text="001 CCTV-1综合 [高清]"
-                android:textColor="@color/text_primary"
-                android:textSize="16sp"
-                android:textStyle="bold" />
-
-            <!-- 实时速率与帧率 Material Tonal Chip -->
-            <TextView
-                android:id="@+id/tv_top_stream_speed"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="12dp"
-                android:background="@drawable/bg_channel_num_pill"
-                android:fontFamily="monospace"
-                android:paddingHorizontal="12dp"
-                android:paddingVertical="5dp"
-                android:text="0 KB/s | 25 fps"
-                android:textColor="@color/md_theme_dark_primary"
-                android:textSize="12sp"
-                android:textStyle="bold" />
 
             <Button
                 android:id="@+id/btn_upload_m3u"
@@ -171,8 +192,8 @@
                 android:nextFocusLeft="@id/btn_switch_isp"
                 android:nextFocusRight="@id/btn_open_scanner"
                 android:nextFocusUp="@id/btn_favorite_channel"
-                android:paddingHorizontal="14dp"
-                android:text="上传M3U"
+                android:paddingHorizontal="12dp"
+                android:text="订阅"
                 android:textSize="13sp" />
 
             <Button
@@ -188,8 +209,8 @@
                 android:nextFocusLeft="@id/btn_upload_m3u"
                 android:nextFocusRight="@id/btn_open_settings"
                 android:nextFocusUp="@id/btn_aspect_ratio"
-                android:paddingHorizontal="14dp"
-                android:text="组播扫描"
+                android:paddingHorizontal="12dp"
+                android:text="扫描"
                 android:textSize="13sp" />
 
             <Button
@@ -197,6 +218,7 @@
                 style="@style/Widget.BjUnicomIptv.HudButton"
                 android:layout_width="wrap_content"
                 android:layout_height="38dp"
+                android:layout_marginEnd="8dp"
                 android:drawableStart="@drawable/ic_flat_settings"
                 android:drawablePadding="6dp"
                 android:focusable="true"
@@ -204,9 +226,25 @@
                 android:nextFocusLeft="@id/btn_open_scanner"
                 android:nextFocusRight="@id/btn_prev_channel"
                 android:nextFocusUp="@id/btn_reload_stream"
-                android:paddingHorizontal="14dp"
-                android:text="播放设置"
+                android:paddingHorizontal="12dp"
+                android:text="设置"
                 android:textSize="13sp" />
+
+            <Button
+                android:id="@+id/btn_show_log"
+                style="@style/Widget.BjUnicomIptv.HudButton"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:focusable="true"
+                android:nextFocusDown="@id/btn_reload_stream"
+                android:nextFocusLeft="@id/btn_open_settings"
+                android:nextFocusRight="@id/btn_prev_channel"
+                android:nextFocusUp="@id/btn_reload_stream"
+                android:paddingHorizontal="14dp"
+                android:text="日志"
+                android:textSize="13sp" />
+                </LinearLayout>
+            </HorizontalScrollView>
         </LinearLayout>
 
         <!-- 底部悬浮播放信息与快捷控制卡片 (Material 3 Elevated Card) -->

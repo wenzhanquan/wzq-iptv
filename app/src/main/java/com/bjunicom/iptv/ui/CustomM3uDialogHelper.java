@@ -31,11 +31,14 @@ import com.bjunicom.iptv.scanner.ScanStatistics;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -73,6 +76,8 @@ public class CustomM3uDialogHelper {
     private TextView tvReport;
     private ProgressBar pbProbe;
     private Button btnProbeStreams;
+    private EditText etSubscribeUrl;
+    private Button btnSubscribeUrl;
 
     private String currentFileName = "custom.m3u";
     private M3uParser.M3uInspectionReport lastReport;
@@ -93,10 +98,10 @@ public class CustomM3uDialogHelper {
         pbProbe = view.findViewById(R.id.pb_custom_m3u_probe);
         btnProbeStreams = view.findViewById(R.id.btn_probe_m3u_streams);
 
-        Button btnPickFile = view.findViewById(R.id.btn_pick_m3u_file);
-        Button btnScanLocal = view.findViewById(R.id.btn_scan_local_m3u_files);
         Button btnLoadSample = view.findViewById(R.id.btn_load_sample_m3u);
         Button btnInspect = view.findViewById(R.id.btn_inspect_m3u_content);
+        etSubscribeUrl = view.findViewById(R.id.et_subscribe_url);
+        btnSubscribeUrl = view.findViewById(R.id.btn_subscribe_url);
 
         // 如果之前已经上传过自定义 M3U，默认回显并自动解析检测
         if (repository.hasCustomUploadedM3u()) {
@@ -106,8 +111,6 @@ public class CustomM3uDialogHelper {
             inspectCurrentContent();
         }
 
-        btnPickFile.setOnClickListener(v -> launchSystemFilePicker());
-        btnScanLocal.setOnClickListener(v -> showLocalM3uFilesPickerDialog());
         btnLoadSample.setOnClickListener(v -> {
             if (repository.hasCustomUploadedM3u()) {
                 currentFileName = settings.getCustomM3uName();
@@ -133,10 +136,12 @@ public class CustomM3uDialogHelper {
             }
         });
 
+        btnSubscribeUrl.setOnClickListener(v -> subscribeFromUrl());
+
         btnProbeStreams.setOnClickListener(v -> toggleStreamConnectivityProbe());
 
         activeDialog = new MaterialAlertDialogBuilder(activity)
-                .setTitle("上传并检测自定义 M3U 播放列表")
+                .setTitle("订阅并检测自定义 M3U 播放列表")
                 .setView(view)
                 .setPositiveButton("设为自定义源并播放", null)
                 .setNeutralButton("合并到当前列表", null)
@@ -156,7 +161,89 @@ public class CustomM3uDialogHelper {
             neutralBtn.setOnClickListener(v -> applyCustomM3u(false));
         }
 
-        btnPickFile.post(btnPickFile::requestFocus);
+        if (etSubscribeUrl != null) {
+            etSubscribeUrl.requestFocus();
+        }
+    }
+
+    private void subscribeFromUrl() {
+        String url = etSubscribeUrl != null ? etSubscribeUrl.getText().toString().trim() : "";
+        if (TextUtils.isEmpty(url)) {
+            Toast.makeText(activity, "请输入订阅地址", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+            Toast.makeText(activity, "订阅地址需以 http:// 或 https:// 开头", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (btnSubscribeUrl != null) {
+            btnSubscribeUrl.setEnabled(false);
+            btnSubscribeUrl.setText("下载中...");
+        }
+        new Thread(() -> {
+            HttpURLConnection conn = null;
+            try {
+                URL u = new URL(url);
+                conn = (HttpURLConnection) u.openConnection();
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(8000);
+                conn.setRequestMethod("GET");
+                int code = conn.getResponseCode();
+                if (code == 200) {
+                    InputStream is = conn.getInputStream();
+                    ByteArrayOutputStream bos = new ByteArrayOutputStream();
+                    byte[] buf = new byte[8192];
+                    int n;
+                    while ((n = is.read(buf)) != -1) {
+                        bos.write(buf, 0, n);
+                    }
+                    is.close();
+                    String content = new String(bos.toByteArray(), StandardCharsets.UTF_8);
+                    String name = url.substring(url.lastIndexOf('/') + 1);
+                    if (TextUtils.isEmpty(name)
+                            || (!name.toLowerCase(Locale.US).endsWith(".m3u")
+                            && !name.toLowerCase(Locale.US).endsWith(".m3u8"))) {
+                        name = "subscribe.m3u";
+                    }
+                    final String fileName = name;
+                    mainHandler.post(() -> {
+                        currentFileName = fileName;
+                        if (tvFileName != null) {
+                            tvFileName.setText(fileName);
+                        }
+                        if (etContent != null) {
+                            etContent.setText(content);
+                        }
+                        inspectCurrentContent();
+                        if (btnSubscribeUrl != null) {
+                            btnSubscribeUrl.setEnabled(true);
+                            btnSubscribeUrl.setText("订阅");
+                        }
+                        Toast.makeText(activity, "订阅成功，已加载 " + content.length() + " 字节内容", Toast.LENGTH_SHORT).show();
+                    });
+                } else {
+                    mainHandler.post(() -> {
+                        if (btnSubscribeUrl != null) {
+                            btnSubscribeUrl.setEnabled(true);
+                            btnSubscribeUrl.setText("订阅");
+                        }
+                        Toast.makeText(activity, "订阅失败: HTTP " + code, Toast.LENGTH_SHORT).show();
+                    });
+                }
+            } catch (Exception e) {
+                mainHandler.post(() -> {
+                    if (btnSubscribeUrl != null) {
+                        btnSubscribeUrl.setEnabled(true);
+                        btnSubscribeUrl.setText("订阅");
+                    }
+                    Toast.makeText(activity, "订阅失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+            } finally {
+                if (conn != null) {
+                    conn.disconnect();
+                }
+            }
+        }).start();
     }
 
     private void applyCustomM3u(boolean switchToCustomSource) {
@@ -233,7 +320,7 @@ public class CustomM3uDialogHelper {
 
         M3uParser.M3uInspectionReport report = inspectCurrentContent();
         if (!report.isValid()) {
-            Toast.makeText(activity, "请先上传或粘贴包含有效频道的 M3U 内容", Toast.LENGTH_SHORT).show();
+            Toast.makeText(activity, "请先订阅或粘贴包含有效频道的 M3U 内容", Toast.LENGTH_SHORT).show();
             return;
         }
 
