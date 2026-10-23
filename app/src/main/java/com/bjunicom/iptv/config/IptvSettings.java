@@ -137,8 +137,8 @@ public class IptvSettings {
      * 默认采用 wuwentao/bj-unicom-iptv 文档中的 192.168.2.1:8012
      */
     public String getUdpxyAddress() {
-        String addr = prefs.getString(KEY_UDPXY_ADDR, "192.168.2.1:8012");
-        return TextUtils.isEmpty(addr) ? "192.168.2.1:8012" : addr.trim();
+        String addr = prefs.getString(KEY_UDPXY_ADDR, "127.0.0.1:8899");
+        return TextUtils.isEmpty(addr) ? "127.0.0.1:8899" : addr.trim();
     }
 
     public void setUdpxyAddress(String addr) {

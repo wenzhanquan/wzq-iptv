@@ -1,0 +1,66 @@
+name: Build ijkplayer (硬解 + MP2)
+
+on:
+  workflow_dispatch: # 手动触发
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 120
+    steps:
+      - name: 安装依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git make yasm unzip
+
+      - name: 下载 Android NDK r14b
+        run: |
+          cd "$HOME"
+          curl -L -o ndk.zip https://dl.google.com/android/repository/android-ndk-r14b-linux-x86_64.zip
+          unzip -q ndk.zip
+          echo "NDK ready: $HOME/android-ndk-r14b"
+
+      - name: 下载 ijkplayer 源码
+        run: |
+          cd "$HOME"
+          git clone --depth 1 --branch k0.8.8 https://github.com/bilibili/ijkplayer.git ijkplayer
+
+      - name: 修改编译配置（启用硬解 + MP2）
+        run: |
+          cd "$HOME/ijkplayer/config"
+          rm -f module.sh
+          ln -s module-default.sh module.sh
+          # 删掉 --disable-hwaccels（硬解被禁用的根因）
+          sed -i 's/--disable-hwaccels//g' module-default.sh
+          # 追加硬解 + MP2 配置
+          {
+            echo 'export COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-mediacodec"'
+            echo 'export COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-jni"'
+            echo 'export COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-decoder=mp2"'
+            echo 'export COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-decoder=mp3"'
+          } >> module-default.sh
+          echo "===== 修改后的硬解相关配置 ====="
+          grep -E "mediacodec|hwaccels|decoder=mp2" module-default.sh || true
+
+      - name: 编译 FFmpeg
+        run: |
+          export ANDROID_NDK="$HOME/android-ndk-r14b"
+          cd "$HOME/ijkplayer/android/contrib"
+          ./compile-ffmpeg.sh clean
+          ./compile-ffmpeg.sh all
+
+      - name: 编译 ijkplayer
+        run: |
+          export ANDROID_NDK="$HOME/android-ndk-r14b"
+          cd "$HOME/ijkplayer/android"
+          ./compile-ijk.sh all
+
+      - name: 上传 so 产物
+        uses: actions/upload-artifact@v3
+        with:
+          name: ijkplayer-so-hardcode-mp2
+          path: |
+            $HOME/ijkplayer/android/ijkplayer/ijkplayer-arm64/src/main/jniLibs/arm64-v8a/
+            $HOME/ijkplayer/android/ijkplayer/ijkplayer-armv7a/src/main/jniLibs/armeabi-v7a/
+            $HOME/ijkplayer/android/ijkplayer/ijkplayer-x86/src/main/jniLibs/x86/
+            $HOME/ijkplayer/android/ijkplayer/ijkplayer-x86_64/src/main/jniLibs/x86_64/

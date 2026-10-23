@@ -326,6 +326,7 @@ public class ChannelRepository {
                 groups.add(ispName);
                 ch.setGroups(groups);
             }
+            applyInferredGroups(ch);
             if (appendIspToDisplay && !TextUtils.isEmpty(ispName)) {
                 String shortTag = ispName.replace("北京", "");
                 String disp = ch.getDisplayName();
@@ -343,6 +344,55 @@ public class ChannelRepository {
         } catch (IOException e) {
             return new ArrayList<>();
         }
+    }
+
+    private static void addGroupIfAbsent(List<String> groups, String group) {
+        if (group != null && !groups.contains(group)) {
+            groups.add(group);
+        }
+    }
+
+    /**
+     * 根据频道 tvg-name / 显示名自动推断分组。
+     * 用于补充没有 group-title 的北京移动组播 m3u (rtp://228.1.1.x)，
+     * 使分类列表（央视/卫视/北京/少儿/4K/标清）能正确过滤出频道。
+     */
+    private void applyInferredGroups(IptvChannel ch) {
+        if (ch == null) {
+            return;
+        }
+        String tvgName = ch.getTvgName() != null ? ch.getTvgName().toLowerCase(Locale.ROOT) : "";
+        String display = ch.getDisplayName() != null ? ch.getDisplayName().toLowerCase(Locale.ROOT) : "";
+        List<String> groups = new ArrayList<>(ch.getGroups());
+
+        boolean isCctv = tvgName.startsWith("cctv") || tvgName.startsWith("cgtn") || display.startsWith("cctv");
+        boolean isBtv = tvgName.startsWith("btv") || tvgName.startsWith("brtv")
+                || display.contains("brtv") || display.contains("btv");
+        boolean isWeiShi = tvgName.contains("卫视") || display.contains("卫视");
+        boolean isKids = tvgName.contains("卡酷") || tvgName.contains("少儿")
+                || display.contains("少儿") || display.contains("卡酷") || display.contains("动画") || display.contains("卡通");
+        boolean is4k = display.contains("4k") || display.contains("超高清") || display.contains("uhd") || display.contains("8k");
+        boolean isSd = display.contains("标清");
+
+        if (isCctv) {
+            addGroupIfAbsent(groups, GROUP_HD_CCTV);
+        }
+        if (isBtv) {
+            addGroupIfAbsent(groups, GROUP_HD_BJ);
+        }
+        if (isWeiShi) {
+            addGroupIfAbsent(groups, GROUP_HD_SATELLITE);
+        }
+        if (isKids) {
+            addGroupIfAbsent(groups, GROUP_KIDS);
+        }
+        if (is4k) {
+            addGroupIfAbsent(groups, GROUP_4K);
+        }
+        if (isSd) {
+            addGroupIfAbsent(groups, GROUP_SD_ALL);
+        }
+        ch.setGroups(groups);
     }
 
     public synchronized void mergeFromModifiedM3u(File m3uFile) {

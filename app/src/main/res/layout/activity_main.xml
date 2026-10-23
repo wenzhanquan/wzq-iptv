@@ -224,7 +224,7 @@
                 android:focusable="true"
                 android:nextFocusDown="@id/btn_reload_stream"
                 android:nextFocusLeft="@id/btn_open_scanner"
-                android:nextFocusRight="@id/btn_prev_channel"
+                android:nextFocusRight="@id/btn_show_log"
                 android:nextFocusUp="@id/btn_reload_stream"
                 android:paddingHorizontal="12dp"
                 android:text="设置"
