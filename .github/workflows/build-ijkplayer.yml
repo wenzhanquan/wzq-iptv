@@ -13,7 +13,7 @@ jobs:
       - name: 安装依赖
         run: |
           apt-get update
-          apt-get install -y git make yasm unzip curl ca-certificates libncurses6 libtinfo6 file python2 openjdk-11-jdk-headless
+          apt-get install -y git make yasm unzip curl ca-certificates libncurses6 libtinfo6 file python2 openjdk-11-jdk-headless linux-libc-dev
           # 解决 libncurses.so.5 缺失：NDK r14b 的 gcc 是 64 位二进制，
           # 需要 64 位 .so.5，但系统只有 .so.6。先确认 .so.6 存在，再软链接
           ls -la /usr/lib/x86_64-linux-gnu/libncurses.so.6 /usr/lib/x86_64-linux-gnu/libtinfo.so.6
@@ -60,6 +60,10 @@ jobs:
           export ANDROID_NDK=/root/android-ndk-r14b
           cd /root/ijkplayer
           ./init-android.sh
+          # 软链接 perf_event.h 到 NDK 所有 sysroot（解决 linux/perf_event.h 缺失）
+          for d in $(find /root/android-ndk-r14b/platforms -type d -name linux); do
+            ln -sf /usr/include/linux/perf_event.h "$d/perf_event.h"
+          done
           cd android/contrib
           ./compile-ffmpeg.sh clean
           ./compile-ffmpeg.sh armv7a
