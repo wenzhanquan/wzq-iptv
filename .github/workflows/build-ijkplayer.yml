@@ -14,21 +14,12 @@ jobs:
         run: |
           apt-get update
           apt-get install -y git make yasm unzip curl ca-certificates
-          # 启用 i386 架构 + 32 位基础库（容器内是 root，无需 sudo）
-          dpkg --add-architecture i386
-          apt-get update
-          apt-get install -y libc6:i386 libstdc++6:i386 zlib1g:i386 || true
-          # libncurses5 / libtinfo5：优先 apt，失败则下载 deb 用 dpkg -x 解压
-          apt-get install -y libncurses5:i386 libtinfo5:i386 2>/dev/null || true
-          if ! ldconfig -p | grep -q "libncurses.so.5"; then
-            cd /tmp
-            curl -sL -o ti5.deb http://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.3_i386.deb
-            curl -sL -o nc5.deb http://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libncurses5_6.3-2ubuntu0.3_i386.deb
-            ls -la ti5.deb nc5.deb
-            dpkg -x ti5.deb /
-            dpkg -x nc5.deb /
-            ldconfig
-          fi
+          # 解决 libncurses.so.5 缺失：NDK r14b 的 gcc 是 64 位二进制，
+          # 需要 64 位 .so.5，但系统只有 .so.6。用软链接把 ncurses6 伪装成 ncurses5
+          ln -sf /usr/lib/x86_64-linux-gnu/libtinfo.so.6 /usr/lib/x86_64-linux-gnu/libtinfo.so.5
+          ln -sf /usr/lib/x86_64-linux-gnu/libncurses.so.6 /usr/lib/x86_64-linux-gnu/libncurses.so.5
+          ln -sf /usr/lib/x86_64-linux-gnu/libncursesw.so.6 /usr/lib/x86_64-linux-gnu/libncursesw.so.5
+          ldconfig
           echo "=== libncurses.so.5 确认 ==="
           ldconfig -p | grep libncurses.so.5
 
