@@ -5,62 +5,56 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:18.04
     timeout-minutes: 120
     steps:
+      - name: 配置 apt 源（18.04 已 EOL，切 old-releases）
+        run: |
+          cat > /etc/apt/sources.list << 'EOF'
+          deb http://old-releases.ubuntu.com/ubuntu bionic main universe multiverse
+          deb http://old-releases.ubuntu.com/ubuntu bionic-updates main universe multiverse
+          deb http://old-releases.ubuntu.com/ubuntu bionic-security main universe multiverse
+          EOF
+          apt-get update
+
       - name: 安装依赖
         run: |
-          sudo dpkg --add-architecture i386
-          sudo apt-get update
-          sudo apt-get install -y git make yasm unzip curl
-          # 32 位基础运行库（NDK r14b 的 gcc 需要）
-          sudo apt-get install -y libc6:i386 libstdc++6:i386 zlib1g:i386 2>&1 | tail -2 || true
-          # 下载 32 位 libncurses5 / libtinfo5，用 dpkg -x 直接解压到系统（绕过依赖检查）
-          cd /tmp
-          curl -sL -o ti5.deb http://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.3_i386.deb
-          curl -sL -o nc5.deb http://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libncurses5_6.3-2ubuntu0.3_i386.deb
-          ls -la ti5.deb nc5.deb
-          sudo dpkg -x ti5.deb /
-          sudo dpkg -x nc5.deb /
-          sudo ldconfig
+          apt-get install -y --no-install-recommends git make yasm unzip curl ca-certificates lib32ncurses5 lib32stdc++6 lib32z1
           echo "=== libncurses.so.5 确认 ==="
           ldconfig -p | grep libncurses.so.5
-          ls -la /lib/i386-linux-gnu/libncurses.so.5* /usr/lib/i386-linux-gnu/libncurses.so.5* 2>/dev/null
 
       - name: 下载 Android NDK r14b
         run: |
-          cd "$HOME"
+          cd /root
           curl -L -o ndk.zip https://dl.google.com/android/repository/android-ndk-r14b-linux-x86_64.zip
           unzip -q ndk.zip
-          echo "NDK ready: $HOME/android-ndk-r14b"
+          echo "NDK ready: /root/android-ndk-r14b"
 
       - name: 下载 ijkplayer 源码
         run: |
-          cd "$HOME"
+          cd /root
           git clone --depth 1 --branch k0.8.8 https://github.com/bilibili/ijkplayer.git ijkplayer
 
       - name: 修改编译配置（启用硬解 + MP2）
         run: |
-          cd "$HOME/ijkplayer/config"
+          cd /root/ijkplayer/config
           rm -f module.sh
           ln -s module-default.sh module.sh
-          # 删掉 --disable-hwaccels（硬解被禁用的根因）
           sed -i 's/--disable-hwaccels//g' module-default.sh
-          # 追加硬解 + MP2 配置
           {
             echo 'export COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-mediacodec"'
             echo 'export COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-jni"'
             echo 'export COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-decoder=mp2"'
             echo 'export COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-decoder=mp3"'
           } >> module-default.sh
-          echo "===== 修改后的硬解相关配置 ====="
           grep -E "mediacodec|hwaccels|decoder=mp2" module-default.sh || true
 
       - name: 编译 FFmpeg
         run: |
-          export ANDROID_NDK="$HOME/android-ndk-r14b"
-          export ANDROID_NDK_ROOT="$HOME/android-ndk-r14b"
-          cd "$HOME/ijkplayer"
+          export ANDROID_NDK=/root/android-ndk-r14b
+          cd /root/ijkplayer
           ./init-android.sh
           cd android/contrib
           ./compile-ffmpeg.sh clean
@@ -71,9 +65,8 @@ jobs:
 
       - name: 编译 ijkplayer
         run: |
-          export ANDROID_NDK="$HOME/android-ndk-r14b"
-          export ANDROID_NDK_ROOT="$HOME/android-ndk-r14b"
-          cd "$HOME/ijkplayer/android"
+          export ANDROID_NDK=/root/android-ndk-r14b
+          cd /root/ijkplayer/android
           ./compile-ijk.sh armv7a
           ./compile-ijk.sh arm64
           ./compile-ijk.sh x86
@@ -84,7 +77,7 @@ jobs:
         with:
           name: ijkplayer-so-hardcode-mp2
           path: |
-            /home/runner/ijkplayer/android/ijkplayer/ijkplayer-arm64/src/main/jniLibs/arm64-v8a/
-            /home/runner/ijkplayer/android/ijkplayer/ijkplayer-armv7a/src/main/jniLibs/armeabi-v7a/
-            /home/runner/ijkplayer/android/ijkplayer/ijkplayer-x86/src/main/jniLibs/x86/
-            /home/runner/ijkplayer/android/ijkplayer/ijkplayer-x86_64/src/main/jniLibs/x86_64/
+            /root/ijkplayer/android/ijkplayer/ijkplayer-arm64/src/main/jniLibs/arm64-v8a/
+            /root/ijkplayer/android/ijkplayer/ijkplayer-armv7a/src/main/jniLibs/armeabi-v7a/
+            /root/ijkplayer/android/ijkplayer/ijkplayer-x86/src/main/jniLibs/x86/
+            /root/ijkplayer/android/ijkplayer/ijkplayer-x86_64/src/main/jniLibs/x86_64/
