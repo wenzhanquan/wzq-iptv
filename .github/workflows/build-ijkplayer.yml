@@ -18,9 +18,9 @@ jobs:
           # 如果 apt 装不上 libncurses.so.5，手动下载 deb 包兜底
           if ! ldconfig -p | grep -q "libncurses.so.5"; then
             cd /tmp
-            wget -q http://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.3_i386.deb
-            wget -q http://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libncurses5_6.3-2ubuntu0.3_i386.deb
-            sudo dpkg -i libtinfo5_*.deb libncurses5_*.deb
+            curl -sL -o libtinfo5_i386.deb http://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.3_i386.deb
+            curl -sL -o libncurses5_i386.deb http://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libncurses5_6.3-2ubuntu0.3_i386.deb
+            sudo dpkg -i libtinfo5_i386.deb libncurses5_i386.deb || true
             sudo ldconfig
           fi
           echo "=== libncurses.so.5 状态 ==="
