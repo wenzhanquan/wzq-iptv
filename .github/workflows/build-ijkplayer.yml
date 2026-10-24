@@ -66,7 +66,7 @@ jobs:
           done
           # 修改 hevc_mvs.c，把 B0 改成 b0（避免和 termbits.h 的 B0 波特率宏冲突）
           for f in $(find /root/ijkplayer/android/contrib -name "hevc_mvs.c"); do
-            sed -i 's/\bB0\b/b0/g' "$f"
+            sed -i 's/B0/b0/g' "$f"
           done
           cd android/contrib
           ./compile-ffmpeg.sh clean
