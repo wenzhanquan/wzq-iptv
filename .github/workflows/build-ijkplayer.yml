@@ -45,8 +45,9 @@ jobs:
       - name: 编译 FFmpeg
         run: |
           export ANDROID_NDK="$HOME/android-ndk-r14b"
-          cd "$HOME/ijkplayer/android/contrib"
+          cd "$HOME/ijkplayer"
           ./init-android.sh
+          cd android/contrib
           ./compile-ffmpeg.sh clean
           ./compile-ffmpeg.sh armv7a
           ./compile-ffmpeg.sh arm64
