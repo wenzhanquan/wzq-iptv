@@ -46,14 +46,21 @@ jobs:
         run: |
           export ANDROID_NDK="$HOME/android-ndk-r14b"
           cd "$HOME/ijkplayer/android/contrib"
+          ./init-android.sh
           ./compile-ffmpeg.sh clean
-          ./compile-ffmpeg.sh all
+          ./compile-ffmpeg.sh armv7a
+          ./compile-ffmpeg.sh arm64
+          ./compile-ffmpeg.sh x86
+          ./compile-ffmpeg.sh x86_64
 
       - name: 编译 ijkplayer
         run: |
           export ANDROID_NDK="$HOME/android-ndk-r14b"
           cd "$HOME/ijkplayer/android"
-          ./compile-ijk.sh all
+          ./compile-ijk.sh armv7a
+          ./compile-ijk.sh arm64
+          ./compile-ijk.sh x86
+          ./compile-ijk.sh x86_64
 
       - name: 上传 so 产物
         uses: actions/upload-artifact@v4
