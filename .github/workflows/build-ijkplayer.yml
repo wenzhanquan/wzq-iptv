@@ -56,7 +56,7 @@ jobs:
           ./compile-ijk.sh all
 
       - name: 上传 so 产物
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ijkplayer-so-hardcode-mp2
           path: |
