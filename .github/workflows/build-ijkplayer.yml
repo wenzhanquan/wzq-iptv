@@ -7,21 +7,28 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      image: ubuntu:18.04
+      image: ubuntu:22.04
     timeout-minutes: 120
     steps:
-      - name: 配置 apt 源（18.04 已 EOL，切 old-releases）
-        run: |
-          cat > /etc/apt/sources.list << 'EOF'
-          deb http://old-releases.ubuntu.com/ubuntu bionic main universe multiverse
-          deb http://old-releases.ubuntu.com/ubuntu bionic-updates main universe multiverse
-          deb http://old-releases.ubuntu.com/ubuntu bionic-security main universe multiverse
-          EOF
-          apt-get update
-
       - name: 安装依赖
         run: |
-          apt-get install -y --no-install-recommends git make yasm unzip curl ca-certificates lib32ncurses5 lib32stdc++6 lib32z1
+          apt-get update
+          apt-get install -y git make yasm unzip curl ca-certificates
+          # 启用 i386 架构 + 32 位基础库（容器内是 root，无需 sudo）
+          dpkg --add-architecture i386
+          apt-get update
+          apt-get install -y libc6:i386 libstdc++6:i386 zlib1g:i386 || true
+          # libncurses5 / libtinfo5：优先 apt，失败则下载 deb 用 dpkg -x 解压
+          apt-get install -y libncurses5:i386 libtinfo5:i386 2>/dev/null || true
+          if ! ldconfig -p | grep -q "libncurses.so.5"; then
+            cd /tmp
+            curl -sL -o ti5.deb http://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.3_i386.deb
+            curl -sL -o nc5.deb http://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libncurses5_6.3-2ubuntu0.3_i386.deb
+            ls -la ti5.deb nc5.deb
+            dpkg -x ti5.deb /
+            dpkg -x nc5.deb /
+            ldconfig
+          fi
           echo "=== libncurses.so.5 确认 ==="
           ldconfig -p | grep libncurses.so.5
 
