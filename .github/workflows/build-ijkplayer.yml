@@ -10,10 +10,11 @@ jobs:
     steps:
       - name: 安装依赖
         run: |
+          sudo dpkg --add-architecture i386
           sudo apt-get update
           sudo apt-get install -y git make yasm unzip
-          # NDK r14b 的 gcc 工具链是 32 位二进制，需要 32 位运行库
-          sudo apt-get install -y lib32stdc++6 lib32z1 libc6-i386 lib32ncurses5 libncurses5 || true
+          # NDK r14b 的 gcc 是 32 位二进制，需要 32 位运行库（用 i386 架构包）
+          sudo apt-get install -y libc6:i386 libstdc++6:i386 zlib1g:i386 libncurses5:i386 libtinfo5:i386 || true
 
       - name: 下载 Android NDK r14b
         run: |
