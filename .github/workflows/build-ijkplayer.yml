@@ -49,8 +49,6 @@ jobs:
           ln -s module-default.sh module.sh
           sed -i 's/--disable-hwaccels//g' module-default.sh
           {
-            echo 'export COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-mediacodec"'
-            echo 'export COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-jni"'
             echo 'export COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-decoder=mp2"'
             echo 'export COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-decoder=mp3"'
           } >> module-default.sh
@@ -59,8 +57,6 @@ jobs:
       - name: 编译 FFmpeg
         run: |
           export ANDROID_NDK=/root/android-ndk-r14b
-          export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
-          export CPPFLAGS="-I$JAVA_HOME/include -I$JAVA_HOME/include/linux"
           cd /root/ijkplayer
           ./init-android.sh
           cd android/contrib
