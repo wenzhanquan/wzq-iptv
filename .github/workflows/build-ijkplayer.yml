@@ -12,19 +12,20 @@ jobs:
         run: |
           sudo dpkg --add-architecture i386
           sudo apt-get update
-          sudo apt-get install -y git make yasm unzip
-          # NDK r14b 的 gcc 是 32 位二进制，需要 32 位运行库
-          sudo apt-get install -y libc6:i386 libstdc++6:i386 zlib1g:i386 libncurses5:i386 libtinfo5:i386 2>&1 | tail -3 || true
-          # 如果 apt 装不上 libncurses.so.5，手动下载 deb 包兜底
-          if ! ldconfig -p | grep -q "libncurses.so.5"; then
-            cd /tmp
-            curl -sL -o libtinfo5_i386.deb http://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.3_i386.deb
-            curl -sL -o libncurses5_i386.deb http://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libncurses5_6.3-2ubuntu0.3_i386.deb
-            sudo dpkg -i libtinfo5_i386.deb libncurses5_i386.deb || true
-            sudo ldconfig
-          fi
-          echo "=== libncurses.so.5 状态 ==="
+          sudo apt-get install -y git make yasm unzip curl
+          # 32 位基础运行库（NDK r14b 的 gcc 需要）
+          sudo apt-get install -y libc6:i386 libstdc++6:i386 zlib1g:i386 2>&1 | tail -2 || true
+          # 下载 32 位 libncurses5 / libtinfo5，用 dpkg -x 直接解压到系统（绕过依赖检查）
+          cd /tmp
+          curl -sL -o ti5.deb http://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.3_i386.deb
+          curl -sL -o nc5.deb http://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libncurses5_6.3-2ubuntu0.3_i386.deb
+          ls -la ti5.deb nc5.deb
+          sudo dpkg -x ti5.deb /
+          sudo dpkg -x nc5.deb /
+          sudo ldconfig
+          echo "=== libncurses.so.5 确认 ==="
           ldconfig -p | grep libncurses.so.5
+          ls -la /lib/i386-linux-gnu/libncurses.so.5* /usr/lib/i386-linux-gnu/libncurses.so.5* 2>/dev/null
 
       - name: 下载 Android NDK r14b
         run: |
