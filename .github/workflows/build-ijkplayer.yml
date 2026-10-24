@@ -13,7 +13,7 @@ jobs:
       - name: 安装依赖
         run: |
           apt-get update
-          apt-get install -y git make yasm unzip curl ca-certificates libncurses6 libtinfo6 file python2
+          apt-get install -y git make yasm unzip curl ca-certificates libncurses6 libtinfo6 file python2 openjdk-11-jdk-headless
           # 解决 libncurses.so.5 缺失：NDK r14b 的 gcc 是 64 位二进制，
           # 需要 64 位 .so.5，但系统只有 .so.6。先确认 .so.6 存在，再软链接
           ls -la /usr/lib/x86_64-linux-gnu/libncurses.so.6 /usr/lib/x86_64-linux-gnu/libtinfo.so.6
@@ -22,6 +22,9 @@ jobs:
           ln -sf /usr/lib/x86_64-linux-gnu/libncursesw.so.6 /usr/lib/x86_64-linux-gnu/libncursesw.so.5
           # python 命令指向 python2（NDK 的 make_standalone_toolchain.py 是 python2 脚本）
           ln -sf /usr/bin/python2 /usr/bin/python
+          # jni.h 软链接到系统 include（FFmpeg configure 的 --enable-jni 需要）
+          ln -sf /usr/lib/jvm/java-11-openjdk-amd64/include/jni.h /usr/include/jni.h
+          ln -sf /usr/lib/jvm/java-11-openjdk-amd64/include/linux/jni_md.h /usr/include/jni_md.h
           ldconfig
           echo "=== 确认 ==="
           ls -la /usr/lib/x86_64-linux-gnu/libncurses.so.5 /usr/lib/x86_64-linux-gnu/libtinfo.so.5
