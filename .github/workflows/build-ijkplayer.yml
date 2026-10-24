@@ -64,6 +64,10 @@ jobs:
           for d in $(find /root/android-ndk-r14b/platforms -type d -name linux); do
             ln -sf /usr/include/linux/perf_event.h "$d/perf_event.h"
           done
+          # 修改 hevc_mvs.c，把 B0 改成 b0（避免和 termbits.h 的 B0 波特率宏冲突）
+          for f in $(find /root/ijkplayer/android/contrib -name "hevc_mvs.c"); do
+            sed -i 's/\bB0\b/b0/g' "$f"
+          done
           cd android/contrib
           ./compile-ffmpeg.sh clean
           ./compile-ffmpeg.sh armv7a
