@@ -47,6 +47,7 @@ jobs:
       - name: 编译 FFmpeg
         run: |
           export ANDROID_NDK="$HOME/android-ndk-r14b"
+          export ANDROID_NDK_ROOT="$HOME/android-ndk-r14b"
           cd "$HOME/ijkplayer"
           ./init-android.sh
           cd android/contrib
@@ -59,6 +60,7 @@ jobs:
       - name: 编译 ijkplayer
         run: |
           export ANDROID_NDK="$HOME/android-ndk-r14b"
+          export ANDROID_NDK_ROOT="$HOME/android-ndk-r14b"
           cd "$HOME/ijkplayer/android"
           ./compile-ijk.sh armv7a
           ./compile-ijk.sh arm64
