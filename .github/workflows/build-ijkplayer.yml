@@ -5,7 +5,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 120
     steps:
       - name: 安装依赖
@@ -13,7 +13,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y git make yasm unzip
           # NDK r14b 的 gcc 工具链是 32 位二进制，需要 32 位运行库
-          sudo apt-get install -y lib32stdc++6 lib32z1 libc6-i386 || true
+          sudo apt-get install -y lib32stdc++6 lib32z1 libc6-i386 lib32ncurses5 libncurses5 || true
 
       - name: 下载 Android NDK r14b
         run: |
