@@ -21,8 +21,8 @@ jobs:
           ln -sf /usr/lib/x86_64-linux-gnu/libncurses.so.6 /usr/lib/x86_64-linux-gnu/libncurses.so.5
           ln -sf /usr/lib/x86_64-linux-gnu/libncursesw.so.6 /usr/lib/x86_64-linux-gnu/libncursesw.so.5
           ldconfig
-          echo "=== libncurses.so.5 确认 ==="
-          ldconfig -p | grep libncurses.so.5
+          echo "=== libncurses.so.5 软链接确认 ==="
+          ls -la /usr/lib/x86_64-linux-gnu/libncurses.so.5 /usr/lib/x86_64-linux-gnu/libtinfo.so.5
 
       - name: 下载 Android NDK r14b
         run: |
