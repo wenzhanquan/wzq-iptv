@@ -12,6 +12,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y git make yasm unzip
+          # NDK r14b 的 gcc 工具链是 32 位二进制，需要 32 位运行库
+          sudo apt-get install -y lib32stdc++6 lib32z1 libc6-i386 || true
 
       - name: 下载 Android NDK r14b
         run: |
@@ -68,7 +70,7 @@ jobs:
         with:
           name: ijkplayer-so-hardcode-mp2
           path: |
-            $HOME/ijkplayer/android/ijkplayer/ijkplayer-arm64/src/main/jniLibs/arm64-v8a/
-            $HOME/ijkplayer/android/ijkplayer/ijkplayer-armv7a/src/main/jniLibs/armeabi-v7a/
-            $HOME/ijkplayer/android/ijkplayer/ijkplayer-x86/src/main/jniLibs/x86/
-            $HOME/ijkplayer/android/ijkplayer/ijkplayer-x86_64/src/main/jniLibs/x86_64/
+            /home/runner/ijkplayer/android/ijkplayer/ijkplayer-arm64/src/main/jniLibs/arm64-v8a/
+            /home/runner/ijkplayer/android/ijkplayer/ijkplayer-armv7a/src/main/jniLibs/armeabi-v7a/
+            /home/runner/ijkplayer/android/ijkplayer/ijkplayer-x86/src/main/jniLibs/x86/
+            /home/runner/ijkplayer/android/ijkplayer/ijkplayer-x86_64/src/main/jniLibs/x86_64/
