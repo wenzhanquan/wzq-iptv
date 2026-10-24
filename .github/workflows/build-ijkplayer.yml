@@ -59,6 +59,8 @@ jobs:
       - name: 编译 FFmpeg
         run: |
           export ANDROID_NDK=/root/android-ndk-r14b
+          export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+          export CPPFLAGS="-I$JAVA_HOME/include -I$JAVA_HOME/include/linux"
           cd /root/ijkplayer
           ./init-android.sh
           cd android/contrib
