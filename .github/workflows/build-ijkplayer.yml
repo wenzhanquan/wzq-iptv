@@ -13,8 +13,18 @@ jobs:
           sudo dpkg --add-architecture i386
           sudo apt-get update
           sudo apt-get install -y git make yasm unzip
-          # NDK r14b 的 gcc 是 32 位二进制，需要 32 位运行库（用 i386 架构包）
-          sudo apt-get install -y libc6:i386 libstdc++6:i386 zlib1g:i386 libncurses5:i386 libtinfo5:i386 || true
+          # NDK r14b 的 gcc 是 32 位二进制，需要 32 位运行库
+          sudo apt-get install -y libc6:i386 libstdc++6:i386 zlib1g:i386 libncurses5:i386 libtinfo5:i386 2>&1 | tail -3 || true
+          # 如果 apt 装不上 libncurses.so.5，手动下载 deb 包兜底
+          if ! ldconfig -p | grep -q "libncurses.so.5"; then
+            cd /tmp
+            wget -q http://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.3_i386.deb
+            wget -q http://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libncurses5_6.3-2ubuntu0.3_i386.deb
+            sudo dpkg -i libtinfo5_*.deb libncurses5_*.deb
+            sudo ldconfig
+          fi
+          echo "=== libncurses.so.5 状态 ==="
+          ldconfig -p | grep libncurses.so.5
 
       - name: 下载 Android NDK r14b
         run: |
