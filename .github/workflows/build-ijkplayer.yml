@@ -13,9 +13,10 @@ jobs:
       - name: 安装依赖
         run: |
           apt-get update
-          apt-get install -y git make yasm unzip curl ca-certificates
+          apt-get install -y git make yasm unzip curl ca-certificates libncurses6 libtinfo6
           # 解决 libncurses.so.5 缺失：NDK r14b 的 gcc 是 64 位二进制，
-          # 需要 64 位 .so.5，但系统只有 .so.6。用软链接把 ncurses6 伪装成 ncurses5
+          # 需要 64 位 .so.5，但系统只有 .so.6。先确认 .so.6 存在，再软链接
+          ls -la /usr/lib/x86_64-linux-gnu/libncurses.so.6 /usr/lib/x86_64-linux-gnu/libtinfo.so.6
           ln -sf /usr/lib/x86_64-linux-gnu/libtinfo.so.6 /usr/lib/x86_64-linux-gnu/libtinfo.so.5
           ln -sf /usr/lib/x86_64-linux-gnu/libncurses.so.6 /usr/lib/x86_64-linux-gnu/libncurses.so.5
           ln -sf /usr/lib/x86_64-linux-gnu/libncursesw.so.6 /usr/lib/x86_64-linux-gnu/libncursesw.so.5
