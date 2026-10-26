@@ -57,7 +57,7 @@ public class ChannelRepository {
     public static final String GROUP_ISP_TELECOM = "北京电信";
     public static final String GROUP_ISP_CUSTOM = "自定义源";
     public static final String GROUP_FAVORITES = "收藏频道";
-    public static final String GROUP_4K = "4K";
+    public static final String GROUP_4K = "4K超清";
     public static final String GROUP_HD_CCTV = "[高清]央视";
     public static final String GROUP_HD_SATELLITE = "[高清]卫视";
     public static final String GROUP_HD_BJ = "[高清]北京";
@@ -371,26 +371,29 @@ public class ChannelRepository {
         boolean isWeiShi = tvgName.contains("卫视") || display.contains("卫视");
         boolean isKids = tvgName.contains("卡酷") || tvgName.contains("少儿")
                 || display.contains("少儿") || display.contains("卡酷") || display.contains("动画") || display.contains("卡通");
-        boolean is4k = display.contains("4k") || display.contains("超高清") || display.contains("uhd") || display.contains("8k");
+        boolean is4k = display.contains("4k") || display.contains("超高清") || display.contains("超清")
+                || display.contains("uhd") || display.contains("8k") || display.contains("hdr");
         boolean isSd = display.contains("标清");
 
-        if (isCctv) {
-            addGroupIfAbsent(groups, GROUP_HD_CCTV);
-        }
-        if (isBtv) {
-            addGroupIfAbsent(groups, GROUP_HD_BJ);
-        }
-        if (isWeiShi) {
-            addGroupIfAbsent(groups, GROUP_HD_SATELLITE);
-        }
-        if (isKids) {
-            addGroupIfAbsent(groups, GROUP_KIDS);
-        }
         if (is4k) {
+            // 超清/4K 频道只归入 4K 分组，不再归入高清分组（避免超清台出现在[高清]北京/[高清]卫视等分类）
             addGroupIfAbsent(groups, GROUP_4K);
-        }
-        if (isSd) {
-            addGroupIfAbsent(groups, GROUP_SD_ALL);
+        } else {
+            if (isCctv) {
+                addGroupIfAbsent(groups, GROUP_HD_CCTV);
+            }
+            if (isBtv) {
+                addGroupIfAbsent(groups, GROUP_HD_BJ);
+            }
+            if (isWeiShi) {
+                addGroupIfAbsent(groups, GROUP_HD_SATELLITE);
+            }
+            if (isKids) {
+                addGroupIfAbsent(groups, GROUP_KIDS);
+            }
+            if (isSd) {
+                addGroupIfAbsent(groups, GROUP_SD_ALL);
+            }
         }
         ch.setGroups(groups);
     }
@@ -527,32 +530,38 @@ public class ChannelRepository {
         categories.add(GROUP_ALL);
         int isp = settings.getIspProvider();
         if (isp == IptvSettings.ISP_ALL_MERGED) {
-            categories.add(GROUP_ISP_UNICOM);
-            categories.add(GROUP_ISP_MOBILE);
-            categories.add(GROUP_ISP_TELECOM);
-            if (hasAnyChannelInGroup(GROUP_ISP_CUSTOM)) {
+            if (hasAnyChannelInCategory(GROUP_ISP_UNICOM)) {
+                categories.add(GROUP_ISP_UNICOM);
+            }
+            if (hasAnyChannelInCategory(GROUP_ISP_MOBILE)) {
+                categories.add(GROUP_ISP_MOBILE);
+            }
+            if (hasAnyChannelInCategory(GROUP_ISP_TELECOM)) {
+                categories.add(GROUP_ISP_TELECOM);
+            }
+            if (hasAnyChannelInCategory(GROUP_ISP_CUSTOM)) {
                 categories.add(GROUP_ISP_CUSTOM);
             }
         }
-        if (isp != IptvSettings.ISP_CUSTOM_M3U || hasAnyChannelInGroup(GROUP_HD_CCTV)) {
+        if (hasAnyChannelInCategory(GROUP_HD_CCTV)) {
             categories.add(GROUP_HD_CCTV);
         }
-        if (isp != IptvSettings.ISP_CUSTOM_M3U || hasAnyChannelInGroup(GROUP_HD_SATELLITE)) {
+        if (hasAnyChannelInCategory(GROUP_HD_SATELLITE)) {
             categories.add(GROUP_HD_SATELLITE);
         }
-        if (isp != IptvSettings.ISP_CUSTOM_M3U || hasAnyChannelInGroup(GROUP_HD_BJ)) {
+        if (hasAnyChannelInCategory(GROUP_HD_BJ)) {
             categories.add(GROUP_HD_BJ);
         }
-        if (isp != IptvSettings.ISP_CUSTOM_M3U || hasAnyChannelInGroup(GROUP_HD_IPTV)) {
+        if (hasAnyChannelInCategory(GROUP_HD_IPTV)) {
             categories.add(GROUP_HD_IPTV);
         }
-        if (hasAnyChannelInGroup(GROUP_HD_NEWTV)) {
+        if (hasAnyChannelInCategory(GROUP_HD_NEWTV)) {
             categories.add(GROUP_HD_NEWTV);
         }
-        if (hasAnyChannelInGroup(GROUP_HD_LOCAL)) {
+        if (hasAnyChannelInCategory(GROUP_HD_LOCAL)) {
             categories.add(GROUP_HD_LOCAL);
         }
-        if (hasAnyChannelInGroup(GROUP_HD_SHOPPING)) {
+        if (hasAnyChannelInCategory(GROUP_HD_SHOPPING)) {
             categories.add(GROUP_HD_SHOPPING);
         }
 
@@ -562,12 +571,19 @@ public class ChannelRepository {
                         || GROUP_ISP_UNICOM.equals(g)
                         || GROUP_ISP_MOBILE.equals(g)
                         || GROUP_ISP_TELECOM.equals(g)
-                        || (isp == IptvSettings.ISP_CUSTOM_M3U && GROUP_ISP_CUSTOM.equals(g))
+                        || GROUP_ISP_CUSTOM.equals(g)
                         || GROUP_4K.equals(g)
                         || GROUP_KIDS.equals(g)
                         || GROUP_SD_ALL.equals(g)
                         || GROUP_DISCOVERED.equals(g)
-                        || GROUP_FAVORITES.equals(g)) {
+                        || GROUP_FAVORITES.equals(g)
+                        || GROUP_HD_CCTV.equals(g)
+                        || GROUP_HD_SATELLITE.equals(g)
+                        || GROUP_HD_BJ.equals(g)
+                        || GROUP_HD_IPTV.equals(g)
+                        || GROUP_HD_NEWTV.equals(g)
+                        || GROUP_HD_LOCAL.equals(g)
+                        || GROUP_HD_SHOPPING.equals(g)) {
                     continue;
                 }
                 if (!categories.contains(g)) {
@@ -576,13 +592,21 @@ public class ChannelRepository {
             }
         }
 
-        categories.add(GROUP_4K);
-        if (isp != IptvSettings.ISP_CUSTOM_M3U || hasAnyChannelInGroup(GROUP_KIDS)) {
+        if (hasAnyChannelInCategory(GROUP_4K)) {
+            categories.add(GROUP_4K);
+        }
+        if (hasAnyChannelInCategory(GROUP_KIDS)) {
             categories.add(GROUP_KIDS);
         }
-        categories.add(GROUP_SD_ALL);
-        categories.add(GROUP_DISCOVERED);
-        categories.add(GROUP_FAVORITES);
+        if (hasAnyChannelInCategory(GROUP_SD_ALL)) {
+            categories.add(GROUP_SD_ALL);
+        }
+        if (hasAnyChannelInCategory(GROUP_DISCOVERED)) {
+            categories.add(GROUP_DISCOVERED);
+        }
+        if (hasAnyChannelInCategory(GROUP_FAVORITES)) {
+            categories.add(GROUP_FAVORITES);
+        }
         return categories;
     }
 
@@ -592,6 +616,15 @@ public class ChannelRepository {
                 if (g.equalsIgnoreCase(groupName)) {
                     return true;
                 }
+            }
+        }
+        return false;
+    }
+
+    private boolean hasAnyChannelInCategory(String category) {
+        for (IptvChannel ch : allChannels) {
+            if (matchesCategory(ch, category)) {
+                return true;
             }
         }
         return false;
@@ -637,7 +670,7 @@ public class ChannelRepository {
             return ch.isDiscoveredByScan() || Boolean.TRUE.equals(ch.getConnected());
         }
         if (GROUP_4K.equals(category)) {
-            return "4K".equals(ch.getResolutionTag()) || ch.getGroups().contains("4K");
+            return "4K".equals(ch.getResolutionTag()) || ch.getGroups().contains(GROUP_4K);
         }
         if (GROUP_SD_ALL.equals(category)) {
             return "标清".equals(ch.getResolutionTag());

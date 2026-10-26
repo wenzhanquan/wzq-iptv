@@ -474,7 +474,10 @@ public final class M3uParser {
         String resTag = "标清";
         if (rawTitle.contains("[4K]")
                 || rawTitle.contains("[超清]")
+                || rawTitle.contains("[超清HDR]")
+                || rawTitle.contains("超高清")
                 || rawTitle.toUpperCase().contains("4K")
+                || rawTitle.toUpperCase().contains("HDR")
                 || (groupRaw != null && groupRaw.contains("4K"))) {
             resTag = "4K";
         } else if (rawTitle.contains("[高清]")
@@ -521,7 +524,7 @@ public final class M3uParser {
             }
         }
         if ("4K".equals(resTag)) {
-            groupSet.add("4K");
+            groupSet.add("4K超清");
         }
         if (groupSet.isEmpty()) {
             groupSet.add("北京IPTV");

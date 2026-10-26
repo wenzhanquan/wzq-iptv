@@ -15,9 +15,11 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
+import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.RadioGroup;
 import android.widget.RelativeLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -297,6 +299,7 @@ public class MainActivity extends AppCompatActivity {
                 findViewById(R.id.btn_upload_m3u),
                 findViewById(R.id.btn_open_scanner),
                 findViewById(R.id.btn_open_settings),
+                findViewById(R.id.btn_show_log),
                 findViewById(R.id.btn_prev_channel),
                 findViewById(R.id.btn_next_channel),
                 findViewById(R.id.btn_numpad_dialog),
@@ -315,6 +318,7 @@ public class MainActivity extends AppCompatActivity {
                     if (hasFocus && drawerPanel.getVisibility() != View.VISIBLE) {
                         currentHudFocusIndex = btnIndex;
                         updateHudButtonsVisualState();
+                        scrollHudButtonIntoView(v);
                     } else if (!hasFocus) {
                         v.setFocusableInTouchMode(false);
                     }
@@ -386,6 +390,22 @@ public class MainActivity extends AppCompatActivity {
                 }
                 return false;
             });
+        }
+    }
+
+    private void scrollHudButtonIntoView(View v) {
+        HorizontalScrollView hsv = findViewById(R.id.hsv_hud_buttons);
+        if (hsv == null || v == null) {
+            return;
+        }
+        int scrollX = hsv.getScrollX();
+        int btnLeft = v.getLeft();
+        int btnRight = v.getRight();
+        int hsvWidth = hsv.getWidth();
+        if (btnLeft - scrollX < 0) {
+            hsv.smoothScrollTo(btnLeft, 0);
+        } else if (btnRight - scrollX > hsvWidth) {
+            hsv.smoothScrollTo(btnRight - hsvWidth, 0);
         }
     }
 
@@ -1079,16 +1099,31 @@ public class MainActivity extends AppCompatActivity {
                 default:
                     modeName = "未知";
             }
-            sb.append("频道: ").append(ch.getDisplayName()).append("\n\n");
-            sb.append("原始地址: ").append(ch.getRawUrl()).append("\n\n");
-            sb.append("拼接地址: ").append(resolvedUrl).append("\n\n");
+            sb.append("频道: ").append(ch.getDisplayName()).append("\n");
+            sb.append("原始地址: ").append(ch.getRawUrl()).append("\n");
+            sb.append("拼接地址: ").append(resolvedUrl).append("\n");
             sb.append("流模式: ").append(modeName).append("\n");
             sb.append("是否组播: ").append(ch.isMulticastStream() ? "是" : "否").append("\n");
-            sb.append("连接状态: ").append(Boolean.TRUE.equals(ch.getConnected()) ? "可用" : "未连接/不可用");
+            sb.append("连接状态: ").append(Boolean.TRUE.equals(ch.getConnected()) ? "可用" : "未连接/不可用").append("\n");
+            sb.append("分辨率标识: ").append(ch.getResolutionTag()).append("\n");
+            if (videoView != null) {
+                sb.append("\n=== 解码器 ===\n");
+                sb.append("解码器: ").append(videoView.getDecoderName()).append("\n");
+                sb.append("视频轨道: ").append(videoView.getFormattedVideoTrackInfo()).append("\n");
+                sb.append("音频轨道: ").append(videoView.getFormattedAudioTrackInfo()).append("\n");
+            }
         }
+        TextView tv = new TextView(this);
+        tv.setText(sb.toString());
+        tv.setTextSize(12);
+        tv.setPadding(24, 16, 24, 16);
+        tv.setTextIsSelectable(true);
+        ScrollView scrollView = new ScrollView(this);
+        scrollView.addView(tv, new ScrollView.LayoutParams(
+                ScrollView.LayoutParams.MATCH_PARENT, ScrollView.LayoutParams.WRAP_CONTENT));
         new MaterialAlertDialogBuilder(this)
                 .setTitle("播放日志")
-                .setMessage(sb.toString())
+                .setView(scrollView)
                 .setPositiveButton("关闭", null)
                 .show();
     }
@@ -1348,6 +1383,8 @@ public class MainActivity extends AppCompatActivity {
         int playerCore = settings.getPlayerType();
         if (playerCore == IptvSettings.PLAYER_ANDROID_MEDIA) {
             rgPlayerCore.check(R.id.rb_core_android);
+        } else if (playerCore == IptvSettings.PLAYER_UTV) {
+            rgPlayerCore.check(R.id.rb_core_utv);
         } else {
             rgPlayerCore.check(R.id.rb_core_ijk);
         }
@@ -1377,6 +1414,8 @@ public class MainActivity extends AppCompatActivity {
                     int checkedCore = rgPlayerCore.getCheckedRadioButtonId();
                     if (checkedCore == R.id.rb_core_android) {
                         settings.setPlayerType(IptvSettings.PLAYER_ANDROID_MEDIA);
+                    } else if (checkedCore == R.id.rb_core_utv) {
+                        settings.setPlayerType(IptvSettings.PLAYER_UTV);
                     } else {
                         settings.setPlayerType(IptvSettings.PLAYER_IJK);
                     }

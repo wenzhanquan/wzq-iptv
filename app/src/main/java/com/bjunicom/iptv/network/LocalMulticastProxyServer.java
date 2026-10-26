@@ -16,12 +16,16 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -134,6 +138,11 @@ public class LocalMulticastProxyServer {
     }
 
     private void handleClient(Socket client) {
+        // 组播实时流转发对调度延迟敏感，提高本转发线程优先级，减少 GC/UI 抢占导致的丢包
+        try {
+            Thread.currentThread().setPriority(Thread.MAX_PRIORITY);
+        } catch (Throwable ignored) {
+        }
         MulticastSocket multicastSocket = null;
         InetAddress groupAddr = null;
         int mcastPort = -1;
@@ -188,7 +197,7 @@ public class LocalMulticastProxyServer {
             } catch (Exception bindEx) {
                 multicastSocket.bind(new InetSocketAddress(mcastPort));
             }
-            multicastSocket.setReceiveBufferSize(512 * 1024);
+            multicastSocket.setReceiveBufferSize(4 * 1024 * 1024);
             multicastSocket.setSoTimeout(5000);
             mcastIf = findPreferredMulticastInterface();
             if (mcastIf != null) {
@@ -218,45 +227,82 @@ public class LocalMulticastProxyServer {
             out.write(responseHeaders.getBytes(StandardCharsets.US_ASCII));
             out.flush();
 
-            byte[] buffer = new byte[2048];
+            // 8192 字节足够容纳 jumbo 巨帧组播包（部分光猫用大 UDP 包提升效率），
+            // 过小的 buffer 会被内核静默截断，导致 TS 流损坏出现马赛克
+            byte[] buffer = new byte[8192];
             DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
             boolean isRtp = "rtp".equalsIgnoreCase(proto);
 
-            while (running.get() && !client.isClosed()) {
-                multicastSocket.receive(packet);
-                int len = packet.getLength();
-                int offset = packet.getOffset();
-                if (len <= 0) {
-                    continue;
-                }
+            // 接收线程与写线程分离：组播实时流若"边收边写"同步串行，
+            // 一旦播放器读得慢（out.write 阻塞），接收即停，内核接收缓冲堆满就丢包。
+            // 用有界队列解耦后，接收线程持续 receive 不阻塞，从根本上减少丢包。
+            final BlockingQueue<byte[]> pendingTs = new ArrayBlockingQueue<>(1024);
+            final AtomicBoolean receiverDone = new AtomicBoolean(false);
+            final MulticastSocket recvSocket = multicastSocket;
+            final byte[] recvBuf = buffer;
+            final DatagramPacket recvPacket = packet;
+            final boolean recvIsRtp = isRtp;
 
-                // 自动剥离 RTP 协议头，输出 MPEG-TS 188 字节对齐负载
-                int payloadOffset = offset;
-                int payloadLen = len;
-                if (isRtp && len > 12 && (buffer[offset] & 0xFF) != 0x47) {
-                    int version = (buffer[offset] & 0xC0) >>> 6;
-                    if (version == 2) {
-                        int csrcCount = buffer[offset] & 0x0F;
-                        boolean hasExtension = (buffer[offset] & 0x10) != 0;
-                        boolean hasPadding = (buffer[offset] & 0x20) != 0;
-                        int headerSize = 12 + csrcCount * 4;
-                        if (hasExtension && len >= headerSize + 4) {
-                            int extLenWords = ((buffer[offset + headerSize + 2] & 0xFF) << 8)
-                                    | (buffer[offset + headerSize + 3] & 0xFF);
-                            headerSize += 4 + extLenWords * 4;
+            Thread receiver = new Thread(() -> {
+                try {
+                    while (running.get() && !client.isClosed()) {
+                        recvSocket.receive(recvPacket);
+                        int len = recvPacket.getLength();
+                        int offset = recvPacket.getOffset();
+                        if (len <= 0) {
+                            continue;
                         }
-                        int paddingBytes = 0;
-                        if (hasPadding) {
-                            paddingBytes = buffer[offset + len - 1] & 0xFF;
+
+                        // 自动剥离 RTP 协议头，输出 MPEG-TS 188 字节对齐负载
+                        int payloadOffset = offset;
+                        int payloadLen = len;
+                        if (recvIsRtp && len > 12 && (recvBuf[offset] & 0xFF) != 0x47) {
+                            int version = (recvBuf[offset] & 0xC0) >>> 6;
+                            if (version == 2) {
+                                int csrcCount = recvBuf[offset] & 0x0F;
+                                boolean hasExtension = (recvBuf[offset] & 0x10) != 0;
+                                boolean hasPadding = (recvBuf[offset] & 0x20) != 0;
+                                int headerSize = 12 + csrcCount * 4;
+                                if (hasExtension && len >= headerSize + 4) {
+                                    int extLenWords = ((recvBuf[offset + headerSize + 2] & 0xFF) << 8)
+                                            | (recvBuf[offset + headerSize + 3] & 0xFF);
+                                    headerSize += 4 + extLenWords * 4;
+                                }
+                                int paddingBytes = 0;
+                                if (hasPadding) {
+                                    paddingBytes = recvBuf[offset + len - 1] & 0xFF;
+                                }
+                                if (headerSize + paddingBytes < len) {
+                                    payloadOffset = offset + headerSize;
+                                    payloadLen = len - headerSize - paddingBytes;
+                                }
+                            }
                         }
-                        if (headerSize + paddingBytes < len) {
-                            payloadOffset = offset + headerSize;
-                            payloadLen = len - headerSize - paddingBytes;
+
+                        byte[] ts = Arrays.copyOfRange(recvBuf, payloadOffset, payloadOffset + payloadLen);
+                        // 队列满则丢最旧包：组播实时流丢旧比阻塞（进而丢新包）更优
+                        if (!pendingTs.offer(ts)) {
+                            pendingTs.poll();
+                            pendingTs.offer(ts);
                         }
                     }
+                } catch (Exception ignored) {
+                } finally {
+                    receiverDone.set(true);
                 }
+            }, "LocalUdpxy-Rx");
+            receiver.setPriority(Thread.MAX_PRIORITY);
+            receiver.setDaemon(true);
+            receiver.start();
 
-                out.write(buffer, payloadOffset, payloadLen);
+            // 写线程（当前线程）：从队列取 TS 数据写回 HTTP 客户端
+            while (running.get() && !client.isClosed()) {
+                byte[] ts = pendingTs.poll(2000, TimeUnit.MILLISECONDS);
+                if (ts != null) {
+                    out.write(ts, 0, ts.length);
+                } else if (receiverDone.get() && pendingTs.isEmpty()) {
+                    break;
+                }
             }
         } catch (Exception e) {
             Log.d(TAG, "Stream closed: " + e.getMessage());
@@ -359,5 +405,98 @@ public class LocalMulticastProxyServer {
             }
         }
         return false;
+    }
+
+    public static void bindMulticastSocketWithGroupFilter(
+            MulticastSocket socket, InetAddress groupAddr, int mcastPort) throws IOException {
+        if (groupAddr != null && groupAddr.isMulticastAddress()) {
+            try {
+                socket.bind(new InetSocketAddress(groupAddr, mcastPort));
+                return;
+            } catch (IOException ignored) {
+            }
+        }
+        socket.bind(new InetSocketAddress(mcastPort));
+    }
+
+    public static List<NetworkInterface> getCandidateMulticastInterfaces() {
+        List<NetworkInterface> list = new ArrayList<>();
+        try {
+            String[] preferredNames = {"eth0.3964", "eth0", "eth1", "usb0", "rndis0", "wlan0"};
+            for (String name : preferredNames) {
+                NetworkInterface nif = NetworkInterface.getByName(name);
+                if (nif != null && nif.isUp() && !nif.isLoopback() && nif.supportsMulticast() && hasIpv4Address(nif)) {
+                    list.add(nif);
+                }
+            }
+            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+            if (interfaces != null) {
+                for (NetworkInterface nif : Collections.list(interfaces)) {
+                    if (nif.isUp() && !nif.isLoopback() && nif.supportsMulticast() && hasIpv4Address(nif)) {
+                        boolean exists = false;
+                        for (NetworkInterface existing : list) {
+                            if (existing.getName().equals(nif.getName())) {
+                                exists = true;
+                                break;
+                            }
+                        }
+                        if (!exists) {
+                            list.add(nif);
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return list;
+    }
+
+    public static List<NetworkInterface> joinMulticastOnAllInterfaces(
+            MulticastSocket socket, InetAddress groupAddr, int mcastPort) {
+        List<NetworkInterface> joinedInterfaces = new ArrayList<>();
+        List<NetworkInterface> candidates = getCandidateMulticastInterfaces();
+        if (!candidates.isEmpty()) {
+            for (NetworkInterface nif : candidates) {
+                try {
+                    if (joinedInterfaces.isEmpty()) {
+                        socket.setNetworkInterface(nif);
+                    }
+                    socket.joinGroup(new InetSocketAddress(groupAddr, mcastPort), nif);
+                    joinedInterfaces.add(nif);
+                    String name = nif.getName();
+                    if (name != null && (name.startsWith("eth") || name.startsWith("usb") || name.startsWith("rndis"))) {
+                        break;
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+        }
+        if (joinedInterfaces.isEmpty()) {
+            try {
+                socket.joinGroup(groupAddr);
+            } catch (Exception ignored) {
+            }
+        }
+        return joinedInterfaces;
+    }
+
+    public static void leaveMulticastOnAllInterfaces(
+            MulticastSocket socket, InetAddress groupAddr, int mcastPort, List<NetworkInterface> joinedInterfaces) {
+        if (socket == null || groupAddr == null) {
+            return;
+        }
+        if (joinedInterfaces != null && !joinedInterfaces.isEmpty()) {
+            for (NetworkInterface nif : joinedInterfaces) {
+                try {
+                    socket.leaveGroup(new InetSocketAddress(groupAddr, mcastPort), nif);
+                } catch (Exception ignored) {
+                }
+            }
+        } else {
+            try {
+                socket.leaveGroup(groupAddr);
+            } catch (Exception ignored) {
+            }
+        }
     }
 }

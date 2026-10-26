@@ -204,7 +204,7 @@
                     android:buttonTint="@color/md_theme_dark_primary"
                     android:focusable="true"
                     android:paddingHorizontal="8dp"
-                    android:text="池化下载器原生 IGMP 组播直连 (rtp://239.3.1.x:port)"
+                    android:text="内置 IGMP 组播直连 (rtp://239.3.1.x:port)"
                     android:textColor="@color/text_primary"
                     android:textSize="13sp" />
             </RadioGroup>
@@ -245,7 +245,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="sans-serif-medium"
-                android:text="播放器内核与池化解码设置"
+                android:text="播放器内核与解码设置"
                 android:textColor="@color/md_theme_dark_primary"
                 android:textSize="14sp"
                 android:textStyle="bold" />
@@ -255,30 +255,45 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:orientation="horizontal">
+                android:orientation="vertical">
+
+                <RadioButton
+                    android:id="@+id/rb_core_utv"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_badge"
+                    android:buttonTint="@color/md_theme_dark_primary"
+                    android:focusable="true"
+                    android:paddingHorizontal="8dp"
+                    android:text="ExoPlayer (MediaCodec 硬解 · 推荐)"
+                    android:textColor="@color/text_primary"
+                    android:textSize="13sp" />
 
                 <RadioButton
                     android:id="@+id/rb_core_ijk"
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="12dp"
+                    android:layout_marginTop="4dp"
                     android:background="@drawable/bg_badge"
                     android:buttonTint="@color/md_theme_dark_primary"
                     android:focusable="true"
                     android:paddingHorizontal="8dp"
-                    android:text="IjkMediaPlayer (池化)"
-                    android:textColor="@color/text_primary" />
+                    android:text="IjkMediaPlayer (FFmpeg)"
+                    android:textColor="@color/text_primary"
+                    android:textSize="13sp" />
 
                 <RadioButton
                     android:id="@+id/rb_core_android"
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
                     android:background="@drawable/bg_badge"
                     android:buttonTint="@color/md_theme_dark_primary"
                     android:focusable="true"
                     android:paddingHorizontal="8dp"
-                    android:text="AndroidMediaPlayer"
-                    android:textColor="@color/text_primary" />
+                    android:text="AndroidMediaPlayer (系统内核)"
+                    android:textColor="@color/text_primary"
+                    android:textSize="13sp" />
             </RadioGroup>
 
             <CheckBox

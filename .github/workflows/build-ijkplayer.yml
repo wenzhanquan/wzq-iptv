@@ -1,4 +1,4 @@
-name: Build ijkplayer (硬解 + MP2)
+name: Build ijkplayer (硬解 + MP2 + RTP)
 
 on:
   workflow_dispatch: # 手动触发
@@ -42,7 +42,7 @@ jobs:
           cd /root
           git clone --depth 1 --branch k0.8.8 https://github.com/bilibili/ijkplayer.git ijkplayer
 
-      - name: 修改编译配置（启用硬解 + MP2）
+      - name: 修改编译配置（启用硬解 + MP2 + RTP）
         run: |
           cd /root/ijkplayer/config
           rm -f module.sh
@@ -50,10 +50,16 @@ jobs:
           sed -i 's/--disable-hwaccels//g' module-default.sh
           {
             echo 'export COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --disable-linux-perf"'
+            echo 'export COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-mediacodec"'
+            echo 'export COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-decoder=h264_mediacodec"'
+            echo 'export COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-decoder=hevc_mediacodec"'
+            echo 'export COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-decoder=mpeg2_mediacodec"'
             echo 'export COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-decoder=mp2"'
             echo 'export COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-decoder=mp3"'
+            echo 'export COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-protocol=rtp"'
+            echo 'export COMMON_FF_CFG_FLAGS="$COMMON_FF_CFG_FLAGS --enable-protocol=udp"'
           } >> module-default.sh
-          grep -E "mediacodec|hwaccels|decoder=mp2" module-default.sh || true
+          grep -E "mediacodec|hwaccels|decoder=mp2|protocol=rtp" module-default.sh || true
 
       - name: 编译 FFmpeg
         run: |
@@ -92,5 +98,5 @@ jobs:
       - name: 上传 so 产物
         uses: actions/upload-artifact@v4
         with:
-          name: ijkplayer-so-hardcode-mp2
+          name: ijkplayer-so-hardcode-mp2-rtp
           path: /root/ijkplayer/android/ijkplayer/**/*.so

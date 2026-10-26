@@ -133,6 +133,7 @@
 
             <!-- 第二行：按钮排（横向滚动，适配手机窄屏） -->
             <HorizontalScrollView
+                android:id="@+id/hsv_hud_buttons"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:scrollbars="none">
